@@ -421,4 +421,23 @@
             const h = size * Math.sqrt(3) / 2;
             
             const p1 = { x: cx, y: cy - 2*h/3 };
-     
+            const p2 = { x: cx + size/2, y: cy + h/3 };
+            const p3 = { x: cx - size/2, y: cy + h/3 };
+            
+            drawKochLine(p1.x, p1.y, p2.x, p2.y, depth);
+            drawKochLine(p2.x, p2.y, p3.x, p3.y, depth);
+            drawKochLine(p3.x, p3.y, p1.x, p1.y, depth);
+        }
+
+        // 監聽拉桿事件
+        depthSlider.addEventListener('input', function() {
+            const currentDepth = parseInt(this.value);
+            depthValue.innerText = currentDepth;
+            drawSnowflake(currentDepth);
+        });
+
+        // 初始繪製
+        drawSnowflake(parseInt(depthSlider.value));
+    </script>
+</body>
+</html>
