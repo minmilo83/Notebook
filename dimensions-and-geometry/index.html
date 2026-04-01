@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mimi's Notebook - Dimensions & Fractals</title>
+    
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        /* ================= 櫻花粉動態漸層背景 ================= */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            /* 嫩粉色/櫻花色系漸層 */
+            background: linear-gradient(-45deg, #fff0f5, #ffe4e1, #ffc0cb, #f8c8dc);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            color: #4a4a4a;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+            transition: all 0.3s ease;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* ================= Liquid Glass (液態玻璃) ================= */
+        .glass-container {
+            width: 100%;
+            max-width: 950px;
+            background: rgba(255, 255, 255, 0.45);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            border-radius: 24px;
+            box-shadow: 0 12px 40px 0 rgba(255, 182, 193, 0.3);
+            padding: 50px;
+            position: relative;
+        }
+
+        /* ================= 語言切換與控制列 ================= */
+        .top-bar {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 20px;
+        }
+
+        .lang-btn {
+            background: rgba(255, 255, 255, 0.6);
+            border: 1px solid rgba(255, 182, 193, 0.8);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            color: #d87093;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        .lang-btn:hover {
+            background: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(216, 112, 147, 0.2);
+        }
+
+        /* 語言顯示邏輯 */
+        body.lang-zh .en { display: none; }
+        body.lang-en .zh { display: none; }
+
+        /* ================= 文字與排版 ================= */
+        h1 {
+            text-align: center;
+            font-size: 2.8em;
+            color: #d87093; /* 櫻桃粉色 */
+            margin-bottom: 5px;
+            text-shadow: 1px 1px 3px rgba(255,255,255,0.9);
+        }
+
+        .subtitle {
+            text-align: center;
+            font-size: 1.1em;
+            color: #888;
+            margin-bottom: 40px;
+            letter-spacing: 1px;
+        }
+
+        .section {
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .section:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(216, 112, 147, 0.15);
+        }
+
+        h2 { color: #c75b7a; border-bottom: 2px dashed #ffb6c1; padding-bottom: 10px; }
+        h3 { color: #d87093; }
+        p, li { line-height: 1.8; font-size: 1.05em; color: #555; }
+
+        /* ================= 互動式 Tooltip (名詞解釋) ================= */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            border-bottom: 2px dotted #d87093;
+            cursor: help;
+            color: #c75b7a;
+            font-weight: 600;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 250px;
+            background-color: rgba(255, 240, 245, 0.95);
+            backdrop-filter: blur(10px);
+            color: #444;
+            text-align: left;
+            border-radius: 8px;
+            padding: 10px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -125px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border: 1px solid #ffb6c1;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.9em;
+            font-weight: normal;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* ================= 互動式畫布與控制項 ================= */
+        .interactive-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.6);
+            padding: 25px;
+            border-radius: 16px;
+            margin: 20px 0;
+            border: 1px solid #ffe4e1;
+        }
+
+        canvas {
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            box-shadow: inset 0 0 20px rgba(255, 182, 193, 0.3), 0 5px 15px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            max-width: 100%;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            width: 80%;
+            max-width: 400px;
+        }
+
+        input[type=range] {
+            flex-grow: 1;
+            accent-color: #d87093;
+        }
+
+        .slider-value {
+            font-weight: bold;
+            color: #d87093;
+            background: #fff;
+            padding: 5px 15px;
+            border-radius: 12px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        /* ================= 引用與參考資料區塊 ================= */
+        .citation {
+            font-size: 0.8em;
+            vertical-align: super;
+            color: #888;
+            cursor: pointer;
+        }
+        
+        .citation:hover { color: #d87093; }
+
+        .references {
+            background: rgba(255, 255, 255, 0.3);
+            padding: 20px;
+            border-radius: 12px;
+            font-size: 0.9em;
+            margin-top: 40px;
+            border-left: 5px solid #ffb6c1;
+        }
+
+        .references ol { padding-left: 20px; }
+        .references a { color: #c75b7a; text-decoration: none; word-break: break-all; }
+        .references a:hover { text-decoration: underline; }
+
+        /* ================= Footer ================= */
+        footer {
+            margin-top: 40px;
+            text-align: center;
+            color: #888;
+            font-size: 0.95em;
+            font-family: 'Courier New', Courier, monospace;
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.5);
+        }
+    </style>
+</head>
+<body class="lang-zh">
+
+    <div class="glass-container">
+        <div class="top-bar">
+            <button class="lang-btn" onclick="toggleLanguage()">🌐 EN / 中文</button>
+        </div>
+
+        <h1 class="zh">維度的叛逆：從 0 維到碎形幾何</h1>
+        <h1 class="en">The Rebellion of Dimensions: From 0D to Fractals</h1>
+        <div class="subtitle zh">數學、拓樸與空間想像力的視覺化筆記</div>
+        <div class="subtitle en">A Visual Notebook on Math, Topology, and Spatial Imagination</div>
+
+        <div class="section">
+            <h2 class="zh">1. 維度的古典定義與擴張 (0D - 4D)</h2>
+            <h2 class="en">1. Classical Definition & Expansion of Dimensions (0D - 4D)</h2>
+            <div class="zh">
+                <p>在歐幾里得空間中，維度代表確定一個點位置所需的「獨立座標數」，即系統的自由度 <span class="citation">[1]</span>。</p>
+                <ul>
+                    <li><strong>0 維 (點 Point)：</strong> 沒有大小與方向，僅有位置。</li>
+                    <li><strong>1 維 (線 Line)：</strong> 具有長度。</li>
+                    <li><strong>2 維 (面 Plane)：</strong> 具有長度與寬度。</li>
+                    <li><strong>3 維 (空間 Space)：</strong> 具有長、寬、高。</li>
+                    <li><strong>4 維 (超空間 Hyperspace)：</strong> 幾何上，是在 3D 空間加上一條與 $x, y, z$ 皆垂直的第四軸（形成 <span class="tooltip">超正方體 Tesseract<span class="tooltiptext">由 8 個三維立方體組成的四維幾何圖形。</span></span>）。在物理學（閔考斯基時空）中，第四維常指「時間」 <span class="citation">[2]</span>。</li>
+                </ul>
+                <p><strong>關鍵字：</strong> 歐幾里得幾何、自由度、閔考斯基時空。</p>
+            </div>
+            <div class="en">
+                <p>In Euclidean space, dimension refers to the number of independent coordinates required to specify a point's position, i.e., the degrees of freedom <span class="citation">[1]</span>.</p>
+                <ul>
+                    <li><strong>0D (Point):</strong> No size or direction, only position.</li>
+                    <li><strong>1D (Line):</strong> Has length.</li>
+                    <li><strong>2D (Plane):</strong> Has length and width.</li>
+                    <li><strong>3D (Space):</strong> Has length, width, and height.</li>
+                    <li><strong>4D (Hyperspace):</strong> Geometrically, adding a fourth axis perpendicular to $x, y, z$ (forming a <span class="tooltip">Tesseract<span class="tooltiptext">A 4D analogue of a cube, composed of 8 cubical cells.</span></span>). In physics (Minkowski spacetime), the fourth dimension is often "time" <span class="citation">[2]</span>.</li>
+                </ul>
+                <p><strong>Keywords:</strong> Euclidean Geometry, Degrees of Freedom, Minkowski Spacetime.</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="zh">2. 挑戰直覺的怪物：皮亞諾與科赫曲線</h2>
+            <h2 class="en">2. Intuition-Defying Monsters: Peano & Koch Curves</h2>
+            <div class="zh">
+                <p>19世紀末，數學家提出了幾種打破傳統維度認知的「怪物曲線」。</p>
+                <ul>
+                    <li><strong><span class="tooltip">皮亞諾曲線 Peano Curve (1890)<span class="tooltiptext">第一條被發現的空間填充曲線，由朱塞佩·皮亞諾提出。</span></span>：</strong> 這是一條連續的 1 維線，卻能經過二維正方形內的「每一個點」而不留空隙。它證明了 1 維物體可以填滿 2 維空間，模糊了維度的絕對界線 <span class="citation">[3]</span>。</li>
+                    <li><strong>科赫雪花 Koch Snowflake (1904)：</strong> 由等邊三角形開始，不斷在邊上長出小三角形。它的神奇之處在於：<strong>面積是有限的</strong>（被限制在特定圓內，約為原三角形面積的 8/5），但其<strong>邊界長度卻是無限大</strong> <span class="citation">[4]</span>。</li>
+                </ul>
+            </div>
+            <div class="en">
+                <p>In the late 19th century, mathematicians discovered "monster curves" that shattered traditional geometric intuition.</p>
+                <ul>
+                    <li><strong><span class="tooltip">Peano Curve (1890)<span class="tooltiptext">The first discovered space-filling curve, introduced by Giuseppe Peano.</span></span>:</strong> A continuous 1D line that passes through every single point in a 2D square. It proved that a 1D object can map onto a 2D space surjectively <span class="citation">[3]</span>.</li>
+                    <li><strong>Koch Snowflake (1904):</strong> Starting from an equilateral triangle, smaller triangles are recursively added to its edges. Its paradox: It bounds a <strong>finite area</strong> (exactly 8/5 of the original triangle), yet has an <strong>infinite perimeter</strong> <span class="citation">[4]</span>.</li>
+                </ul>
+            </div>
+            
+            <div class="interactive-box">
+                <h3 class="zh">🔬 互動模擬：科赫雪花的生成</h3>
+                <h3 class="en">🔬 Interactive Simulation: Koch Snowflake</h3>
+                <canvas id="kochCanvas" width="350" height="350"></canvas>
+                <div class="slider-container">
+                    <span class="zh">迭代深度：</span>
+                    <span class="en">Depth:</span>
+                    <input type="range" id="depthSlider" min="0" max="5" value="0">
+                    <div class="slider-value" id="depthValue">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="zh">3. 小數的誕生：豪斯多夫維度 (碎形維度)</h2>
+            <h2 class="en">3. The Birth of Decimals: Hausdorff Dimension (Fractals)</h2>
+            <div class="zh">
+                <p>傳統幾何無法精確描述科赫曲線的擁擠程度。因此數學家引入了 <strong><span class="tooltip">豪斯多夫維度 Hausdorff Dimension<span class="tooltiptext">一種可以允許非整數結果的維度測度方式，用以衡量空間的複雜度。</span></span></strong>。</p>
+                <p>計算公式為：$$D = \frac{\log(\text{產生數量 } N)}{\log(\text{縮放比例 } s)}$$</p>
+                <p>將科赫曲線的一條線段放大 $3$ 倍（$s=3$），它會變成 $4$ 條相同的線段（$N=4$）。<br>
+                $$D = \frac{\log(4)}{\log(3)} \approx 1.2618$$</p>
+                <p><strong>為什麼是小數？</strong> 因為它比平滑的線（1維）更曲折、更能佔據空間，但又沒有像面（2維）那樣完全填滿。這就是所謂的 <strong>碎形 (Fractal)</strong>，它們具備「自相似性」（局部放大與整體相同） <span class="citation">[5]</span>。</p>
+                <p><em>延伸思考：</em> 若將一個三角形內部挖空成三個小三角形（謝爾賓斯基三角形），其維度為 $D = \frac{\log 3}{\log 2} \approx 1.585$。</p>
+            </div>
+            <div class="en">
+                <p>Classical geometry failed to measure the "roughness" of the Koch curve. Hence, the <strong><span class="tooltip">Hausdorff Dimension<span class="tooltiptext">A measure of roughness or complexity of a set in a metric space, allowing non-integer values.</span></span></strong> was introduced.</p>
+                <p>The formula is: $$D = \frac{\log(\text{Number of self-similar pieces } N)}{\log(\text{Scaling factor } s)}$$</p>
+                <p>For the Koch curve, scaling it by $3$ ($s=3$) yields $4$ identical smaller pieces ($N=4$).<br>
+                $$D = \frac{\log(4)}{\log(3)} \approx 1.2618$$</p>
+                <p><strong>Why a decimal?</strong> It represents an object strictly "rougher" than a 1D line, but not quite a 2D plane. These objects are <strong>Fractals</strong>, defined by their "self-similarity" <span class="citation">[5]</span>.</p>
+                <p><em>Extension:</em> The Sierpiński triangle, formed by recursively removing the center of a triangle, has a dimension of $D = \frac{\log 3}{\log 2} \approx 1.585$.</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="zh">4. 拓樸學與維度：嚴格的碎形定義</h2>
+            <h2 class="en">4. Topology and Dimension: The Strict Definition of Fractals</h2>
+            <div class="zh">
+                <p><strong>拓樸學 (Topology)</strong> 被稱為「橡皮筋幾何學」，它研究物體在連續拉伸、彎曲（但不撕裂或黏合）下保持不變的性質。在拓樸學家眼中，咖啡杯與甜甜圈是「同胚」的（因為都有一個洞） <span class="citation">[6]</span>。</p>
+                <p><strong>拓樸學與維度的核心關係：</strong></p>
+                <ul>
+                    <li>在拓樸學中，使用的維度稱為「<span class="tooltip">勒貝格覆蓋維度 Lebesgue covering dimension<span class="tooltiptext">基於空間開覆蓋重疊特性的拓樸維度定義，必然為整數。</span></span>」，這個維度<strong>永遠是整數</strong>（點=0，線=1，面=2）。</li>
+                    <li>科赫曲線雖然看起來很複雜，但如果你把它「拉直」（雖然長度無限），它在拓樸學本質上仍是一條 <strong>1 維的線</strong>。</li>
+                </ul>
+                <p>碎形幾何學之父 <strong>本華·曼德博 (Benoit Mandelbrot)</strong> 正是利用了這兩者的落差，給出了碎形最嚴謹的數學定義：<br>
+                <br>
+                <strong>「碎形是一個集合，其豪斯多夫維度（小數）嚴格大於其拓樸維度（整數）。」</strong><br>
+                (對於科赫曲線：$1.2618 > 1$) <span class="citation">[5]</span>。</p>
+            </div>
+            <div class="en">
+                <p><strong>Topology</strong>, often called "rubber-sheet geometry," studies properties of space that are preserved under continuous deformations (stretching, bending, but not tearing or gluing). To a topologist, a coffee mug and a doughnut are "homeomorphic" (both have one hole) <span class="citation">[6]</span>.</p>
+                <p><strong>The Core Relationship between Topology and Dimension:</strong></p>
+                <ul>
+                    <li>In topology, dimension is described by the <strong><span class="tooltip">Lebesgue covering dimension<span class="tooltiptext">A topological definition of dimension based on open covers, always resulting in an integer.</span></span></strong>, which is <strong>always an integer</strong> (Point=0, Line=1, Plane=2).</li>
+                    <li>Despite its infinite complexity, if you topologically "untangle" a Koch curve, it is fundamentally still a <strong>1D line</strong>.</li>
+                </ul>
+                <p>The father of fractal geometry, <strong>Benoit Mandelbrot</strong>, used this exact discrepancy to define fractals rigorously:<br>
+                <br>
+                <strong>"A fractal is by definition a set for which the Hausdorff dimension strictly exceeds the topological dimension."</strong><br>
+                (For the Koch Curve: $1.2618 > 1$) <span class="citation">[5]</span>.</p>
+            </div>
+        </div>
+
+        <div class="references">
+            <h3 class="zh">📚 參考資料與引用來源 (References & Citations)</h3>
+            <h3 class="en">📚 References & Citations</h3>
+            <ol>
+                <li>Weisstein, E. W. "Dimension." <em>MathWorld--A Wolfram Web Resource</em>. <a href="https://mathworld.wolfram.com/Dimension.html" target="_blank">https://mathworld.wolfram.com/Dimension.html</a></li>
+                <li>Einstein, A. (1916). <em>Relativity: The Special and General Theory</em>. (Explaining Minkowski spacetime).</li>
+                <li>Weisstein, E. W. "Peano Curve." <em>MathWorld</em>. <a href="https://mathworld.wolfram.com/PeanoCurve.html" target="_blank">https://mathworld.wolfram.com/PeanoCurve.html</a></li>
+                <li>Weisstein, E. W. "Koch Snowflake." <em>MathWorld</em>. <a href="https://mathworld.wolfram.com/KochSnowflake.html" target="_blank">https://mathworld.wolfram.com/KochSnowflake.html</a></li>
+                <li>Mandelbrot, B. B. (1982). <em>The Fractal Geometry of Nature</em>. W. H. Freeman and Company. (Defines Hausdorff vs. Topological dimension).</li>
+                <li>Munkres, J. R. (2000). <em>Topology</em> (2nd Edition). Prentice Hall.</li>
+            </ol>
+        </div>
+
+    </div>
+
+    <footer>
+        Created by minmilo83 × Gemini
+    </footer>
+
+    <script>
+        // 1. 語言切換功能
+        function toggleLanguage() {
+            const body = document.body;
+            if (body.classList.contains('lang-zh')) {
+                body.classList.remove('lang-zh');
+                body.classList.add('lang-lang-en'); // Note: Added temporary step for safety
+                body.className = 'lang-en';
+            } else {
+                body.className = 'lang-zh';
+            }
+        }
+
+        // 2. 科赫雪花畫布邏輯 (具備互動滑桿)
+        const canvas = document.getElementById('kochCanvas');
+        const ctx = canvas.getContext('2d');
+        const depthSlider = document.getElementById('depthSlider');
+        const depthValue = document.getElementById('depthValue');
+
+        // 繪製單段科赫曲線
+        function drawKochLine(x1, y1, x2, y2, depth) {
+            if (depth === 0) {
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            } else {
+                const dx = x2 - x1;
+                const dy = y2 - y1;
+                
+                const p1x = x1 + dx / 3;
+                const p1y = y1 + dy / 3;
+                const p3x = x1 + 2 * dx / 3;
+                const p3y = y1 + 2 * dy / 3;
+                
+                const angle = Math.PI / 3;
+                const p2x = p1x + (p3x - p1x) * Math.cos(angle) + (p3y - p1y) * Math.sin(angle);
+                const p2y = p1y - (p3x - p1x) * Math.sin(angle) + (p3y - p1y) * Math.cos(angle);
+                
+                drawKochLine(x1, y1, p1x, p1y, depth - 1);
+                drawKochLine(p1x, p1y, p2x, p2y, depth - 1);
+                drawKochLine(p2x, p2y, p3x, p3y, depth - 1);
+                drawKochLine(p3x, p3y, x2, y2, depth - 1);
+            }
+        }
+
+        // 繪製完整雪花
+        function drawSnowflake(depth) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#d87093'; // 櫻桃粉色線條
+            ctx.lineWidth = 1.2;
+            
+            const size = 200;
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2 + 25; 
+            const h = size * Math.sqrt(3) / 2;
+            
+            const p1 = { x: cx, y: cy - 2*h/3 };
+     
