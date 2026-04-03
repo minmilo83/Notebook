@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Notebook Maker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        /* --- 核心樣式與變數 (OmniSearch Liquid Glass Base) --- */
+        :root {
+            /* 圓潤大 R 角 */
+            --r-corner: 24px;
+            --note-width: 80%;
+            
+            --bg-color: #f0f2f5; 
+            --text-color: #333333;
+            
+            /* 平台恆定 Liquid Glass 變數 */
+            --ui-glass-bg: rgba(255, 255, 255, 0.45);
+            --ui-glass-border: rgba(255, 255, 255, 0.6);
+            --ui-glass-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+            --ui-glass-blur: blur(25px);
+
+            /* 成品模塊的背景 (受開關控制) */
+            --block-bg: rgba(255, 255, 255, 0.7); 
+            --border-color: rgba(0, 0, 0, 0.1);
+            
+            --primary-color: #007aff; 
+            --note-glass-opacity: 1;
+            --font-family: 'Noto Sans TC', 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+            --watermark-color: rgba(0, 0, 0, 0.04);
+        }
+
+        body.dark-mode {
+            --bg-color: #1a1a1a;
+            --text-color: #f0f0f0;
+            --ui-glass-bg: rgba(30, 30, 30, 0.55);
+            --ui-glass-border: rgba(255, 255, 255, 0.1);
+            --ui-glass-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            --block-bg: rgba(40, 40, 40, 0.7);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --watermark-color: rgba(255, 255, 255, 0.04);
+        }
+
+        * { box-sizing: border-box; outline: none; }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            overflow: hidden; 
+            transition: background-color 0.5s ease, color 0.5s ease;
+        }
+
+        /* --- 6:4 布局 --- */
+        #app-container { display: flex; height: 100vh; width: 100vw; }
+
+        #editor-region {
+            flex: 0 0 60%; height: 100%;
+            background: var(--ui-glass-bg);
+            backdrop-filter: var(--ui-glass-blur);
+            -webkit-backdrop-filter: var(--ui-glass-blur);
+            border-right: 1px solid var(--ui-glass-border);
+            box-shadow: var(--ui-glass-shadow);
+            display: flex; flex-direction: column;
+            overflow-y: auto; 
+            transition: background 0.4s ease;
+            position: relative; z-index: 10;
+        }
+
+        #preview-region {
+            flex: 1; height: 100%;
+            background-color: transparent; 
+            overflow-y: auto; position: relative;
+        }
+
+        /* --- 主題設定選單 --- */
+        #theme-panel {
+            position: fixed; left: -340px; top: 0;
+            width: 320px; height: 100vh;
+            background: var(--ui-glass-bg);
+            backdrop-filter: var(--ui-glass-blur);
+            -webkit-backdrop-filter: var(--ui-glass-blur);
+            border-right: 1px solid var(--ui-glass-border);
+            box-shadow: var(--ui-glass-shadow);
+            border-top-right-radius: var(--r-corner);
+            border-bottom-right-radius: var(--r-corner);
+            z-index: 1000;
+            transition: left 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            padding: 30px 20px; overflow-y: auto;
+            display: flex; flex-direction: column; gap: 18px;
+        }
+        #theme-panel.active { left: 0; }
+
+        #theme-toggle-btn {
+            position: fixed; left: 20px; top: 20px; z-index: 1001;
+            background: var(--ui-glass-bg);
+            backdrop-filter: var(--ui-glass-blur);
+            border: 1px solid var(--ui-glass-border);
+            color: var(--text-color);
+            width: 50px; height: 50px;
+            border-radius: 50%; cursor: pointer;
+            box-shadow: var(--ui-glass-shadow);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        #theme-toggle-btn:hover {
+            background: var(--primary-color); color: white; border-color: var(--primary-color); transform: scale(1.05);
+        }
+
+        /* --- 編輯區 --- */
+        #editor-content { padding: 90px 30px 20px 30px; width: 100%; display: flex; flex-direction: column; align-items: center; }
+
+        .editor-block {
+            width: 100%; max-width: 800px; 
+            background: var(--ui-glass-bg);
+            border: 1px solid var(--ui-glass-border);
+            border-radius: var(--r-corner);
+            padding: 20px; margin-bottom: 25px;
+            position: relative; transition: all 0.3s ease;
+            box-shadow: var(--ui-glass-shadow);
+        }
+        .editor-block:focus-within {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15), var(--ui-glass-shadow);
+            transform: translateY(-2px);
+        }
+
+        .block-input {
+            width: 100%; background: transparent; border: none;
+            color: var(--text-color); font-family: var(--font-family);
+            font-size: 16px; resize: none; overflow: hidden; line-height: 1.7;
+        }
+
+        /* --- 預覽區 --- */
+        #preview-wrapper { padding: 50px 0; width: 100%; display: flex; flex-direction: column; align-items: center; }
+        #preview-content { width: var(--note-width); transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; gap: 20px; }
+
+        .preview-block {
+            width: 100%; border-radius: var(--r-corner);
+            background: var(--block-bg); padding: 25px;
+            transition: background-color 0.4s ease, backdrop-filter 0.4s ease;
+            word-wrap: break-word; position: relative;
+            backdrop-filter: blur(calc(20px * var(--note-glass-opacity)));
+            -webkit-backdrop-filter: blur(calc(20px * var(--note-glass-opacity)));
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+        }
+        .preview-block:empty::before { content: "請輸入內容..."; color: #aaa; font-style: italic; }
+
+        /* --- 特殊功能樣式 --- */
+
+        /* Threads 劇透雜訊濾鏡 */
+        .spoiler-text {
+            color: transparent; 
+            text-shadow: 0 0 8px var(--text-color);
+            /* SVG 雜訊底圖 */
+            background: rgba(128, 128, 128, 0.15) url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noise)" opacity="0.12"/></svg>');
+            border-radius: 8px; padding: 2px 6px;
+            cursor: pointer; user-select: none; 
+            transition: all 0.3s ease; display: inline-block; line-height: 1.2;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1);
+        }
+        .spoiler-text.revealed {
+            color: inherit; text-shadow: none; background: rgba(0,0,0,0.05);
+        }
+        body.dark-mode .spoiler-text.revealed { background: rgba(255,255,255,0.05); }
+
+        .md-table-wrapper { width: 100%; overflow-x: auto; margin: 15px 0; border-radius: 12px; }
+        .md-table-wrapper table { border-collapse: collapse; width: max-content; min-width: 100%; }
+        .md-table-wrapper th, .md-table-wrapper td { border: 1px solid var(--border-color); padding: 10px; text-align: left; }
+
+        /* 日曆模塊 */
+        .calendar-container { width: 100%; font-size: 14px; }
+        .calendar-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; margin-bottom: 15px; font-size: 1.1em;}
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; text-align: center; }
+        .calendar-day-label { font-weight: bold; color: #888; }
+        .calendar-date { padding: 10px; border-radius: 50%; cursor: pointer; transition: all 0.2s ease; }
+        .calendar-date:not(.empty):hover { background-color: rgba(0, 0, 0, 0.05); transform: scale(1.1); }
+        .calendar-date.today { border: 2px solid var(--primary-color); font-weight: bold; }
+        .calendar-date.marked { background-color: var(--primary-color) !important; color: white; box-shadow: 0 4px 10px rgba(0,122,255,0.3); }
+
+        /* 圖片模塊 */
+        .image-container { width: 100%; display: flex; justify-content: center; align-items: center; }
+        .preview-img { max-width: 100%; border-radius: calc(var(--r-corner) - 4px); object-fit: contain; }
+
+        /* --- 時鐘模塊 (OmniSearch Style) --- */
+        .clock-wrapper { display: flex; justify-content: center; align-items: center; padding: 10px; }
+        /* 數位時鐘 */
+        .clock-digital { font-size: 3.5rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 2px; text-shadow: 0 4px 15px rgba(0,0,0,0.05); color: var(--text-color); }
+        /* 類比時鐘 */
+        .clock-analog { width: 150px; height: 150px; border-radius: 50%; border: 6px solid var(--ui-glass-border); background: var(--ui-glass-bg); box-shadow: inset 0 0 20px rgba(0,0,0,0.05), var(--ui-glass-shadow); position: relative; }
+        .clock-hand { position: absolute; bottom: 50%; left: 50%; transform-origin: bottom; border-radius: 10px; background: var(--text-color); transition: transform 0.1s cubic-bezier(0.4, 2.08, 0.55, 0.44); }
+        .hand-hour { width: 6px; height: 40px; margin-left: -3px; background: var(--primary-color); z-index: 3;}
+        .hand-min { width: 4px; height: 55px; margin-left: -2px; z-index: 2;}
+        .hand-sec { width: 2px; height: 65px; margin-left: -1px; background: #ff3b30; z-index: 4;}
+        .clock-center { position: absolute; top: 50%; left: 50%; width: 12px; height: 12px; border-radius: 50%; background: var(--text-color); transform: translate(-50%, -50%); z-index: 5;}
+        /* 翻頁時鐘 */
+        .clock-flip { display: flex; gap: 12px; }
+        .flip-card { background: var(--text-color); color: var(--bg-color); padding: 15px 12px; border-radius: 12px; font-size: 2.5rem; font-weight: bold; font-variant-numeric: tabular-nums; position: relative; box-shadow: 0 8px 16px rgba(0,0,0,0.2); min-width: 60px; text-align: center; }
+        .flip-card::after { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: rgba(0,0,0,0.3); transform: translateY(-50%); }
+
+        /* --- UI 互動元件 --- */
+        .block-actions {
+            position: absolute; left: -50px; top: 50%; transform: translateY(-50%);
+            display: flex; flex-direction: column; gap: 10px; opacity: 0; transition: opacity 0.3s ease;
+        }
+        .editor-block:hover .block-actions { opacity: 1; }
+
+        .drag-handle { width: 36px; height: 36px; cursor: grab; background: var(--ui-glass-bg); backdrop-filter: var(--ui-glass-blur); border: 1px solid var(--ui-glass-border); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--text-color); font-weight: bold; box-shadow: var(--ui-glass-shadow);}
+        .delete-btn { width: 36px; height: 36px; cursor: pointer; background: rgba(255, 60, 48, 0.1); color: #ff3b30; border: 1px solid rgba(255, 60, 48, 0.2); border-radius: 12px; font-size: 16px; transition: all 0.2s;}
+        .delete-btn:hover { background: rgba(255, 60, 48, 0.2); transform: scale(1.1); }
+
+        /* 新增模塊選單包裹器 (確保絕對定位精準) */
+        #add-block-wrapper {
+            position: relative; text-align: center; margin: 20px 0 80px 0; align-self: center; display: flex; justify-content: center;
+        }
+
+        #add-block-btn {
+            width: 60px; height: 60px; border-radius: 50%;
+            background: var(--ui-glass-bg); backdrop-filter: var(--ui-glass-blur);
+            border: 1px solid var(--ui-glass-border);
+            color: var(--text-color); font-size: 28px; cursor: pointer;
+            box-shadow: var(--ui-glass-shadow); transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        #add-block-btn:hover { background: var(--primary-color); color: white; border-color: var(--primary-color); transform: translateY(-3px) scale(1.05); box-shadow: 0 15px 30px rgba(0,122,255,0.3);}
+
+        #add-block-menu {
+            position: absolute;
+            bottom: calc(100% + 15px); /* 永遠鎖定在按鈕正上方 */
+            left: 50%;
+            transform: translateX(-50%) translateY(20px) scale(0.9);
+            background: var(--ui-glass-bg);
+            backdrop-filter: var(--ui-glass-blur);
+            -webkit-backdrop-filter: var(--ui-glass-blur);
+            border-radius: var(--r-corner);
+            border: 1px solid var(--ui-glass-border);
+            padding: 20px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;
+            opacity: 0; visibility: hidden; pointer-events: none;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 999; box-shadow: 0 20px 50px rgba(0,0,0,0.15); width: max-content;
+        }
+        #add-block-menu.active { opacity: 1; visibility: visible; pointer-events: auto; transform: translateX(-50%) translateY(0) scale(1); }
+
+        .menu-item {
+            border: 1px solid var(--ui-glass-border); border-radius: 16px; padding: 15px 20px;
+            background: rgba(255, 255, 255, 0.2); cursor: pointer; text-align: center;
+            transition: all 0.3s ease; font-size: 14px; font-weight: 500;
+        }
+        body.dark-mode .menu-item { background: rgba(0,0,0,0.2); }
+        .menu-item:hover { background: var(--primary-color); color: white; transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.1); border-color: var(--primary-color); }
+
+        /* --- 浮動文字選單 --- */
+        #inline-toolbar {
+            position: absolute;
+            background: var(--ui-glass-bg); 
+            backdrop-filter: var(--ui-glass-blur);
+            -webkit-backdrop-filter: var(--ui-glass-blur);
+            border-radius: 16px; padding: 8px; display: flex; gap: 6px;
+            z-index: 1002; opacity: 0; visibility: hidden;
+            transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: translateY(15px) scale(0.95);
+            border: 1px solid var(--ui-glass-border);
+            box-shadow: var(--ui-glass-shadow); align-items: center;
+        }
+        #inline-toolbar.active { opacity: 1; visibility: visible; transform: translateY(0) scale(1); }
+
+        .toolbar-btn {
+            background: transparent; border: none; color: var(--text-color);
+            padding: 8px 12px; cursor: pointer; border-radius: 10px; font-size: 15px;
+            transition: all 0.2s; display: flex; align-items: center; justify-content: center; font-weight: 500;
+        }
+        .toolbar-btn:hover { background: rgba(0,0,0,0.05); transform: translateY(-1px); }
+        body.dark-mode .toolbar-btn:hover { background: rgba(255,255,255,0.1); }
+        
+        #text-style-select { background: transparent; color: var(--text-color); border: none; padding: 4px; border-radius: 8px; cursor: pointer; font-weight: 500; }
+        #text-style-select option { color: black; }
+
+        /* 色彩選單 */
+        .color-picker-popup {
+            position: absolute; background: var(--ui-glass-bg); backdrop-filter: var(--ui-glass-blur);
+            border: 1px solid var(--ui-glass-border); border-radius: 20px; padding: 18px;
+            display: grid; gap: 10px; z-index: 1003; box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+        .color-cell { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 1px solid rgba(0,0,0,0.1); transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+        .color-cell:hover { transform: scale(1.3); box-shadow: 0 6px 12px rgba(0,0,0,0.2); z-index: 2;}
+
+        /* --- 系統介面 --- */
+        #watermark { position: absolute; bottom: 20px; right: 25px; font-size: 14px; color: var(--watermark-color); pointer-events: none; font-family: 'Comic Sans MS', cursive; font-weight: bold; letter-spacing: 1px;}
+        #note-base { margin-top: 60px; width: var(--note-width); text-align: center; border-top: 2px dashed var(--border-color); padding-top: 30px; color: #888; font-size: 15px; }
+        
+        #export-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.3); backdrop-filter: blur(15px); z-index: 2000; display: none; align-items: center; justify-content: center; }
+        #export-modal.active { display: flex; }
+        #modal-content { background: var(--ui-glass-bg); backdrop-filter: var(--ui-glass-blur); border-radius: var(--r-corner); border: 1px solid var(--ui-glass-border); padding: 40px; width: 90%; max-width: 500px; box-shadow: 0 30px 60px rgba(0,0,0,0.3); position: relative;}
+        #close-modal { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.05); border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border: none; color: var(--text-color); font-size: 20px; cursor: pointer; transition: 0.2s;}
+        #close-modal:hover { background: rgba(255,60,48,0.1); color: #ff3b30; }
+
+        @media (max-width: 768px) {
+            #app-container { flex-direction: column; }
+            #editor-region { flex: 0 0 50%; border-right: none; border-bottom: 1px solid var(--ui-glass-border); }
+            .drag-handle { width: 40px; height: 40px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <div id="editor-region">
+            <button id="theme-toggle-btn" onclick="toggleThemePanel()" title="主題與設定">⚙️</button>
+            <div id="editor-content">
+                </div>
+            
+            <div id="add-block-wrapper">
+                <div id="add-block-menu">
+                    <div class="menu-item" onclick="addNewBlock('text')"><span style="font-size:28px;">T</span><br>文字</div>
+                    <div class="menu-item" onclick="addNewBlock('calendar')"><span style="font-size:28px;">📅</span><br>日曆</div>
+                    <div class="menu-item" onclick="addNewBlock('image')"><span style="font-size:28px;">🖼️</span><br>圖片</div>
+                    <div class="menu-item" onclick="addNewBlock('md')"><span style="font-size:28px;">📝</span><br>Markdown</div>
+                    <div class="menu-item" onclick="addNewBlock('clock')"><span style="font-size:28px;">🕰️</span><br>時鐘</div>
+                </div>
+                <button id="add-block-btn" onclick="toggleAddMenu()">+</button>
+            </div>
+        </div>
+
+        <div id="preview-region">
+            <div id="preview-wrapper">
+                <div id="preview-content"></div>
+                <div id="note-base">
+                    <div id="sig-line1-preview"></div>
+                    <div id="sig-line2-preview" style="font-weight: bold; margin-top:4px;"></div>
+                    <div id="sig-line3-preview" style="font-size: 0.9em; margin-top:8px; opacity: 0.7;"></div>
+                </div>
+            </div>
+            <div id="watermark">Made with Mimi's Notebook Maker</div>
+        </div>
+    </div>
+
+    <div id="theme-panel">
+        <h3 style="margin-top:0; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">面板設定</h3>
+        
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span>🌙 夜間模式</span>
+            <input type="checkbox" id="darkmode-switch" onchange="toggleDarkMode()" style="width:20px; height:20px;">
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center;" title="此開關僅影響右側預覽成品與匯出檔案">
+            <span>🪟 成品毛玻璃特效</span>
+            <input type="checkbox" id="glass-switch" checked onchange="toggleNoteGlassEffect()" style="width:20px; height:20px;">
+        </div>
+        
+        <div>
+            <label>筆記寬度：<span id="width-value">80</span>%</label>
+            <input type="range" id="width-slider" min="50" max="100" value="80" style="width:100%; margin-top:10px;" oninput="updateNoteWidth(this.value)">
+        </div>
+
+        <div>
+            <label style="display:block; margin-bottom:12px; font-size: 14px;">🎨 主色調 (強調色)</label>
+            <div id="primary-color-picker" style="display:grid; grid-template-columns: repeat(8, 1fr); gap:8px;"></div>
+        </div>
+
+        <div>
+            <label style="font-size: 14px; display:block; margin-bottom:10px;">背景底色：</label>
+            <input type="color" id="bgcolor-picker" value="#f0f2f5" style="border:none; background:transparent; cursor:pointer; width:100%; height:40px; border-radius:12px;" onchange="updateBgColor(this.value)">
+        </div>
+
+        <div style="border-top:1px solid var(--border-color); padding-top:20px; margin-top:10px;">
+            <h4 style="margin-top:0; margin-bottom:15px;">✍️ 落款設定</h4>
+            <input type="text" id="sig-line1" placeholder="第一行 (如: Mimi's Collection)" class="block-input" style="border:1px solid var(--ui-glass-border); background:rgba(255,255,255,0.2); border-radius:12px; padding:12px; margin-bottom:10px;" oninput="updateSignature()">
+            <input type="text" id="sig-line2" placeholder="第二行 (如: Geometry Study)" class="block-input" style="border:1px solid var(--ui-glass-border); background:rgba(255,255,255,0.2); border-radius:12px; padding:12px; margin-bottom:10px;" oninput="updateSignature()">
+            <select id="sig-date-format" class="block-input" style="border:1px solid var(--ui-glass-border); background:rgba(255,255,255,0.2); border-radius:12px; padding:12px;" onchange="updateSignature()">
+                <option value="YMD" style="color:black;">年/月/日 (如 2026/04/02)</option>
+                <option value="YM" style="color:black;">年/月 (如 April 2026)</option>
+                <option value="Year" style="color:black;">僅年份 (如 2026)</option>
+                <option value="MD" style="color:black;">僅月日 (如 April 2nd)</option>
+                <option value="None" style="color:black;">無日期</option>
+            </select>
+        </div>
+
+        <div style="margin-top:auto; padding-top:30px; text-align:center;">
+            <button onclick="exportNotebookHTML()" style="width:100%; padding:15px; background-color:var(--primary-color); color:white; border:none; border-radius:16px; cursor:pointer; font-weight:bold; font-size:16px; box-shadow: 0 8px 20px rgba(0,0,0,0.15); transition: 0.2s;">
+                📥 匯出成純閱讀 HTML
+            </button>
+            <div id="export-size-info" style="font-size:12px; color:#888; margin-top:12px;">預估檔案大小: 0 KB</div>
+        </div>
+    </div>
+
+    <div id="inline-toolbar">
+        <select id="text-style-select" onchange="applyTextStyle(this.value)" class="toolbar-btn">
+            <option value="p">內文</option>
+            <option value="h1">大標</option>
+            <option value="h2">副標</option>
+            <option value="h3">小標</option>
+        </select>
+        <div style="width:1px; height:24px; background:var(--ui-glass-border); margin:0 4px;"></div>
+        <button class="toolbar-btn" onclick="applyInlineStyle('bold')" title="粗體"><b>B</b></button>
+        <button class="toolbar-btn" onclick="applyInlineStyle('italic')" title="斜體" style="font-style: italic; font-family: serif;">I</button>
+        <button class="toolbar-btn" onclick="applyInlineStyle('strikethrough')" title="刪除線"><s>S</s></button>
+        <button class="toolbar-btn" onclick="applyInlineStyle('superscript')" title="上標">X²</button>
+        <button class="toolbar-btn" onclick="applyInlineStyle('subscript')" title="下標">X₂</button>
+        
+        <div style="width:1px; height:24px; background:var(--ui-glass-border); margin:0 4px;"></div>
+        
+        <button class="toolbar-btn" id="highlight-btn" onclick="toggleColorPicker('highlight')" title="螢光筆">🖍️</button>
+        <button class="toolbar-btn" id="textcolor-btn" onclick="toggleColorPicker('textcolor')" title="字體顏色">A</button>
+        <button class="toolbar-btn" onclick="applySpoiler()" title="Threads劇透特效">🌫️</button>
+        <button class="toolbar-btn" onclick="insertLink()" title="插入連結">🔗</button>
+    </div>
+
+    <div id="export-modal">
+        <div id="modal-content">
+            <button id="close-modal" onclick="closeModal()">✕</button>
+            <h2 style="margin-top:0; color:var(--primary-color);">🎉 檔案已備妥</h2>
+            <p style="font-size: 16px; line-height: 1.6;">純淨版的筆記檔案已下載，請查看你的下載資料夾。</p>
+            <div style="background: rgba(0,0,0,0.03); padding:20px; border-radius:16px; margin-top:20px; border: 1px solid var(--border-color);">
+                <h4 style="margin-top:0;">🚀 部署到 GitHub Pages</h4>
+                <ol style="padding-left:20px; font-size:15px; line-height:1.8; margin-bottom:0;">
+                    <li>前往 GitHub 建立新 Repository。</li>
+                    <li>將下載的檔案重新命名為 <code>index.html</code>。</li>
+                    <li>上傳至 Repository。</li>
+                    <li>進入 Settings -> Pages，將 Source 設為 main 並保存。</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let blocks = []; 
+        let currentSelection = null; 
+        let clockTimer = null;
+        
+        const appleColors = [
+            "#007aff", "#5856d6", "#ff2d55", "#ff3b30", "#ff9500", "#ffcc00", "#34c759", "#5ac8fa", 
+            "#0040ff", "#4c48c4", "#e6003e", "#e60000", "#e67300", "#e6b800", "#00a331", "#00b1f0", 
+            "#1f1f1f", "#3a3a3a", "#555555", "#707070", "#8b8b8b", "#a6a6a6", "#c1c1c1", "#dcdcdc", 
+            "#ffffff" 
+        ];
+
+        const highlightColors = [
+            "rgba(255, 255, 0, 0.4)", "rgba(0, 255, 0, 0.4)", "rgba(0, 255, 255, 0.4)", "rgba(255, 0, 255, 0.4)",
+            "rgba(255, 102, 0, 0.4)", "rgba(0, 102, 255, 0.4)", "rgba(102, 0, 255, 0.4)", "rgba(255, 0, 0, 0.4)"
+        ];
+
+        const renderer = new marked.Renderer();
+        renderer.link = (href, title, text) => `<a href="${href}" title="${title || ''}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+        marked.setOptions({ renderer: renderer });
+
+        window.onload = () => {
+            initColorPickers();
+            setupThemePanelAutoCollapse();
+            setupGlobalSpoilerClick();
+            loadLocalStorage();
+            renderPreview();
+            updateExportSize();
+            autoSaveListener();
+            startClockTimer();
+        };
+
+        /* 全域劇透點擊監聽 (支援編輯區與預覽區) */
+        function setupGlobalSpoilerClick() {
+            document.addEventListener('click', (e) => {
+                if (e.target.classList.contains('spoiler-text')) {
+                    e.target.classList.toggle('revealed');
+                }
+            });
+        }
+
+        function initColorPickers() {
+            const primaryPicker = document.getElementById('primary-color-picker');
+            appleColors.slice(0,16).forEach(color => {
+                const cell = document.createElement('div');
+                cell.className = 'color-cell';
+                cell.style.backgroundColor = color;
+                cell.onclick = () => updatePrimaryColor(color);
+                primaryPicker.appendChild(cell);
+            });
+            document.documentElement.style.setProperty('--primary-color', appleColors[0]);
+        }
+
+        function setupThemePanelAutoCollapse() {
+            const themePanel = document.getElementById('theme-panel');
+            let hideTimer;
+            themePanel.addEventListener('mouseleave', () => { hideTimer = setTimeout(() => { themePanel.classList.remove('active'); }, 1500); });
+            themePanel.addEventListener('mouseenter', () => { clearTimeout(hideTimer); });
+        }
+
+        function toggleThemePanel() { document.getElementById('theme-panel').classList.toggle('active'); }
+
+        function toggleAddMenu(force) {
+            const menu = document.getElementById('add-block-menu');
+            if (force !== undefined) menu.classList.toggle('active', force);
+            else menu.classList.toggle('active');
+        }
+
+        function addNewBlock(type) {
+            const id = Date.now().toString();
+            let newBlock = { id: id, type: type, content: "" };
+            if (type === 'calendar') newBlock.data = { markedDates: [], year: new Date().getFullYear(), month: new Date().getMonth() };
+            if (type === 'clock') newBlock.data = { clockType: 'digital' };
+            
+            blocks.push(newBlock);
+            createEditorBlock(newBlock);
+            renderPreview();
+            toggleAddMenu(false); 
+        }
+
+        function createEditorBlock(block) {
+            const container = document.getElementById('editor-content');
+            const div = document.createElement('div');
+            div.className = 'editor-block';
+            div.id = `block-container-${block.id}`;
+            div.dataset.id = block.id;
+
+            div.innerHTML = `
+                <div class="block-actions">
+                    <div class="drag-handle" draggable="true">⋮⋮</div>
+                    <button class="delete-btn" onclick="deleteBlock('${block.id}')">✕</button>
+                </div>
+            `;
+
+            let inputElement;
+            if (block.type === 'text') {
+                inputElement = document.createElement('div');
+                inputElement.className = 'block-input text-block';
+                inputElement.contentEditable = "true";
+                inputElement.id = `block-input-${block.id}`;
+                inputElement.innerHTML = block.content;
+                inputElement.addEventListener('input', () => syncContent(block.id));
+                inputElement.addEventListener('mouseup', handleTextSelection);
+                inputElement.addEventListener('keyup', handleTextSelection);
+            } else if (block.type === 'image') {
+                inputElement = document.createElement('input');
+                inputElement.type = "text"; inputElement.className = 'block-input';
+                inputElement.placeholder = "貼上圖片網址 (URL)...";
+                inputElement.value = block.content;
+                inputElement.addEventListener('input', (e) => { block.content = e.target.value; renderPreview(); });
+            } else if (block.type === 'calendar') {
+                inputElement = document.createElement('div');
+                inputElement.className = 'block-input'; inputElement.style.color = "#888"; inputElement.innerText = "📅 日曆模塊 (請於右側預覽區點擊互動)";
+            } else if (block.type === 'md') {
+                inputElement = document.createElement('textarea');
+                inputElement.className = 'block-input md-block'; inputElement.placeholder = "輸入 Markdown 語法...";
+                inputElement.value = block.content;
+                inputElement.addEventListener('input', (e) => {
+                    block.content = e.target.value; e.target.style.height = 'auto'; e.target.style.height = `${e.target.scrollHeight}px`; renderPreview();
+                });
+                setTimeout(() => { inputElement.style.height = `${inputElement.scrollHeight}px`; }, 10);
+            } else if (block.type === 'clock') {
+                inputElement = document.createElement('select');
+                inputElement.className = 'block-input';
+                inputElement.style.border = '1px solid var(--border-color)';
+                inputElement.style.padding = '10px';
+                inputElement.style.borderRadius = '8px';
+                inputElement.style.background = 'rgba(255,255,255,0.2)';
+                inputElement.innerHTML = `
+                    <option value="digital" ${block.data.clockType === 'digital' ? 'selected' : ''} style="color:black;">數位時鐘 (Digital)</option>
+                    <option value="analog" ${block.data.clockType === 'analog' ? 'selected' : ''} style="color:black;">類比時鐘 (Analog)</option>
+                    <option value="flip" ${block.data.clockType === 'flip' ? 'selected' : ''} style="color:black;">翻頁時鐘 (Flip)</option>
+                `;
+                inputElement.addEventListener('change', (e) => {
+                    block.data.clockType = e.target.value; renderPreview();
+                });
+            }
+
+            div.appendChild(inputElement);
+            container.appendChild(div);
+            setupDragAndDrop(div);
+        }
+
+        function deleteBlock(id) { blocks = blocks.filter(b => b.id !== id); document.getElementById(`block-container-${id}`).remove(); renderPreview(); }
+
+        function syncContent(id) {
+            const block = blocks.find(b => b.id === id);
+            if (block.type === 'text') block.content = document.getElementById(`block-input-${id}`).innerHTML;
+            renderPreview();
+        }
+
+        function renderPreview() {
+            const preview = document.getElementById('preview-content');
+            preview.innerHTML = ""; 
+
+            blocks.forEach(block => {
+                if (block.type !== 'calendar' && block.type !== 'clock' && (!block.content || block.content.trim() === "" || block.content === '<br>')) return;
+                const div = document.createElement('div');
+                div.className = 'preview-block'; div.id = `block-preview-${block.id}`;
+
+                if (block.type === 'text') { div.innerHTML = block.content; } 
+                else if (block.type === 'md') {
+                    let mdHtml = marked.parse(block.content);
+                    mdHtml = mdHtml.replace(/<table>/g, '<div class="md-table-wrapper"><table>').replace(/<\/table>/g, '</table></div>');
+                    div.innerHTML = mdHtml;
+                } else if (block.type === 'image') {
+                    const container = document.createElement('div'); container.className = 'image-container';
+                    const img = document.createElement('img'); img.src = block.content; img.className = 'preview-img';
+                    img.onerror = () => { container.innerHTML = `<div style="padding:40px; color:#888; border:1px dashed #ccc; border-radius:12px;">圖片遺失</div>`; };
+                    container.appendChild(img); div.appendChild(container);
+                } else if (block.type === 'calendar') {
+                    renderCalendar(block, div);
+                } else if (block.type === 'clock') {
+                    div.innerHTML = renderClockHTML(block.data.clockType);
+                    div.classList.add('clock-render-block');
+                    div.dataset.clockType = block.data.clockType;
+                }
+                preview.appendChild(div);
+            });
+            updateExportSize();
+            updateAllClocks(); // 渲染後立即刷新一次時間
+        }
+
+        /* --- 時鐘邏輯 --- */
+        function renderClockHTML(type) {
+            if (type === 'digital') return `<div class="clock-wrapper"><div class="clock-digital">00:00:00</div></div>`;
+            if (type === 'analog') return `<div class="clock-wrapper"><div class="clock-analog"><div class="clock-hand hand-hour"></div><div class="clock-hand hand-min"></div><div class="clock-hand hand-sec"></div><div class="clock-center"></div></div></div>`;
+            if (type === 'flip') return `<div class="clock-wrapper"><div class="clock-flip"><div class="flip-card f-hour">00</div><div class="flip-card f-min">00</div><div class="flip-card f-sec">00</div></div></div>`;
+            return '';
+        }
+
+        function startClockTimer() {
+            if(clockTimer) clearInterval(clockTimer);
+            clockTimer = setInterval(updateAllClocks, 1000);
+        }
+
+        function updateAllClocks() {
+            const now = new Date();
+            const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+            const hs = String(h).padStart(2,'0'), ms = String(m).padStart(2,'0'), ss = String(s).padStart(2,'0');
+            
+            document.querySelectorAll('.clock-render-block').forEach(block => {
+                const type = block.dataset.clockType;
+                if (type === 'digital') {
+                    const el = block.querySelector('.clock-digital');
+                    if (el) el.innerText = `${hs}:${ms}:${ss}`;
+                } else if (type === 'analog') {
+                    const hHand = block.querySelector('.hand-hour');
+                    const mHand = block.querySelector('.hand-min');
+                    const sHand = block.querySelector('.hand-sec');
+                    if(hHand && mHand && sHand) {
+                        const hDeg = (h % 12) * 30 + m * 0.5;
+                        const mDeg = m * 6 + s * 0.1;
+                        const sDeg = s * 6;
+                        hHand.style.transform = `rotate(${hDeg}deg)`;
+                        mHand.style.transform = `rotate(${mDeg}deg)`;
+                        sHand.style.transform = `rotate(${sDeg}deg)`;
+                    }
+                } else if (type === 'flip') {
+                    const fh = block.querySelector('.f-hour');
+                    const fm = block.querySelector('.f-min');
+                    const fs = block.querySelector('.f-sec');
+                    if (fh && fh.innerText !== hs) fh.innerText = hs;
+                    if (fm && fm.innerText !== ms) fm.innerText = ms;
+                    if (fs && fs.innerText !== ss) fs.innerText = ss;
+                }
+            });
+        }
+
+        /* --- 日曆邏輯 --- */
+        function renderCalendar(block, container) {
+            const { markedDates, year, month } = block.data;
+            const cDiv = document.createElement('div'); cDiv.className = 'calendar-container';
+            const header = document.createElement('div'); header.className = 'calendar-header';
+            header.innerText = `${new Date(year, month).toLocaleString('en-US', { month: 'long' })} ${year}`;
+            cDiv.appendChild(header);
+
+            const grid = document.createElement('div'); grid.className = 'calendar-grid';
+            ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].forEach(day => {
+                const l = document.createElement('div'); l.className = 'calendar-day-label'; l.innerText = day; grid.appendChild(l);
+            });
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const todayD = new Date().getDate();
+            const isTodayInM = new Date().getFullYear() === year && new Date().getMonth() === month;
+
+            for (let i = 0; i < firstDay; i++) { const eCell = document.createElement('div'); eCell.className = 'calendar-date empty'; grid.appendChild(eCell); }
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dCell = document.createElement('div'); dCell.className = 'calendar-date'; dCell.innerText = day;
+                if (isTodayInM && day === todayD) dCell.classList.add('today');
+                if (markedDates.includes(day)) dCell.classList.add('marked');
+
+                dCell.onclick = () => {
+                    const bData = blocks.find(b => b.id === block.id).data;
+                    if (bData.markedDates.includes(day)) bData.markedDates = bData.markedDates.filter(d => d !== day);
+                    else bData.markedDates.push(day);
+                    renderPreview(); 
+                };
+                grid.appendChild(dCell);
+            }
+            cDiv.appendChild(grid); container.appendChild(cDiv);
+        }
+
+        /* --- 文字選單與樣式 --- */
+        function handleTextSelection() {
+            const selection = window.getSelection();
+            if (selection.rangeCount > 0 && !selection.isCollapsed && selection.anchorNode.parentNode.closest('.text-block')) {
+                currentSelection = selection.getRangeAt(0); showInlineToolbar();
+            } else { currentSelection = null; hideInlineToolbar(); hideColorPopups(); }
+        }
+
+        function showInlineToolbar() {
+            const toolbar = document.getElementById('inline-toolbar');
+            const rect = currentSelection.getBoundingClientRect();
+            toolbar.style.top = `${rect.top + window.scrollY - 60}px`; 
+            toolbar.style.left = `${rect.left + window.scrollX + (rect.width / 2) - (toolbar.offsetWidth / 2)}px`; 
+            toolbar.classList.add('active');
+            
+            const parentElement = currentSelection.startContainer.parentElement;
+            const styleSelect = document.getElementById('text-style-select');
+            if (parentElement.closest('h1')) styleSelect.value = 'h1';
+            else if (parentElement.closest('h2')) styleSelect.value = 'h2';
+            else if (parentElement.closest('h3')) styleSelect.value = 'h3';
+            else styleSelect.value = 'p';
+        }
+
+        function hideInlineToolbar() { document.getElementById('inline-toolbar').classList.remove('active'); }
+
+        function applyTextStyle(tag) {
+            if (!currentSelection) return; restoreSelection(); document.execCommand('formatBlock', false, tag);
+            syncContent(currentSelection.startContainer.parentElement.closest('.editor-block').dataset.id); 
+        }
+
+        function applyInlineStyle(command) {
+            restoreSelection(); document.execCommand(command, false, null);
+            syncContent(currentSelection.startContainer.parentElement.closest('.editor-block').dataset.id);
+        }
+
+        function applySpoiler() {
+            if (!currentSelection) return; restoreSelection();
+            const text = window.getSelection().toString();
+            // 包裹 span class，依賴全域 click 監聽器觸發解鎖
+            const spoilerHtml = `<span class="spoiler-text">${text}</span>`;
+            document.execCommand('insertHTML', false, spoilerHtml);
+            syncContent(currentSelection.startContainer.parentElement.closest('.editor-block').dataset.id);
+        }
+
+        function insertLink() {
+            const url = prompt("請輸入連結網址 (需包含 http:// 或 https://):");
+            if (url) { restoreSelection(); document.execCommand('createLink', false, url); syncContent(currentSelection.startContainer.parentElement.closest('.editor-block').dataset.id); }
+        }
+
+        function toggleColorPicker(type) {
+            hideColorPopups();
+            const toolbar = document.getElementById('inline-toolbar');
+            const toolbarRect = toolbar.getBoundingClientRect();
+            const popup = document.createElement('div');
+            popup.className = `color-picker-popup ${type}-popup-active`;
+            popup.id = `${type}-picker`;
+            popup.style.top = `${toolbarRect.top + 60}px`; popup.style.left = `${toolbarRect.left}px`;
+            
+            const colors = type === 'highlight' ? highlightColors : appleColors;
+            popup.style.gridTemplateColumns = type === 'highlight' ? 'repeat(4, 1fr)' : 'repeat(8, 1fr)';
+            
+            colors.forEach(color => {
+                const cell = document.createElement('div'); cell.className = 'color-cell'; cell.style.backgroundColor = color;
+                cell.onclick = () => { restoreSelection(); document.execCommand(type === 'highlight' ? 'backColor' : 'foreColor', false, color); syncContent(currentSelection.startContainer.parentElement.closest('.editor-block').dataset.id); hideColorPopups(); };
+                popup.appendChild(cell);
+            });
+            document.body.appendChild(popup);
+        }
+
+        function hideColorPopups() { document.querySelectorAll('.color-picker-popup').forEach(p => p.remove()); }
+        function restoreSelection() { const s = window.getSelection(); if (currentSelection) { s.removeAllRanges(); s.addRange(currentSelection); } }
+
+        /* --- 系統變數 --- */
+        function updatePrimaryColor(color) { document.documentElement.style.setProperty('--primary-color', color); saveSettings(); renderPreview(); }
+        function updateBgColor(color) { document.documentElement.style.setProperty('--bg-color', color); autoFlipTextColor(color); saveSettings(); }
+
+        function autoFlipTextColor(bgColor) {
+            const rgb = hexToRgb(bgColor); const brightness = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
+            if (brightness < 128) {
+                document.documentElement.style.setProperty('--text-color', '#f0f0f0');
+                document.documentElement.style.setProperty('--watermark-color', 'rgba(255, 255, 255, 0.04)');
+                document.documentElement.style.setProperty('--border-color', 'rgba(255,255,255,0.15)');
+            } else {
+                document.documentElement.style.setProperty('--text-color', '#333333');
+                document.documentElement.style.setProperty('--watermark-color', 'rgba(0,0,0,0.04)');
+                document.documentElement.style.setProperty('--border-color', 'rgba(0,0,0,0.1)');
+            }
+        }
+
+        function toggleNoteGlassEffect() { document.documentElement.style.setProperty('--note-glass-opacity', document.getElementById('glass-switch').checked ? 1 : 0); saveSettings(); }
+        
+        function toggleDarkMode() {
+            const isDark = document.getElementById('darkmode-switch').checked;
+            if (isDark) {
+                document.body.classList.add('dark-mode'); document.documentElement.style.setProperty('--bg-color', '#1a1a1a'); document.getElementById('bgcolor-picker').value = '#1a1a1a'; autoFlipTextColor('#1a1a1a');
+            } else {
+                document.body.classList.remove('dark-mode'); document.documentElement.style.setProperty('--bg-color', '#f0f2f5'); document.getElementById('bgcolor-picker').value = '#f0f2f5'; autoFlipTextColor('#f0f2f5');
+            }
+            saveSettings();
+        }
+
+        function updateNoteWidth(value) { document.getElementById('width-value').innerText = value; document.documentElement.style.setProperty('--note-width', `${value}%`); saveSettings(); }
+
+        function updateSignature() {
+            document.getElementById('sig-line1-preview').innerText = document.getElementById('sig-line1').value;
+            document.getElementById('sig-line2-preview').innerText = document.getElementById('sig-line2').value;
+            const format = document.getElementById('sig-date-format').value;
+            let dateText = ""; const today = new Date();
+            if (format === 'YMD') dateText = `${today.getFullYear()}/${String(today.getMonth()+1).padStart(2,'0')}/${String(today.getDate()).padStart(2,'0')}`;
+            else if (format === 'YM') dateText = `${today.toLocaleString('en-US', { month: 'long' })} ${today.getFullYear()}`;
+            else if (format === 'Year') dateText = today.getFullYear();
+            else if (format === 'MD') dateText = `${today.toLocaleString('en-US', { month: 'long' })} ${getOrdinalDay(today.getDate())}`;
+            document.getElementById('sig-line3-preview').innerText = dateText; saveSettings();
+        }
+
+        function hexToRgb(hex) { hex = hex.replace('#', ''); if (hex.length === 3) hex = hex.split('').map(char => char + char).join(''); const bigint = parseInt(hex, 16); return { r: (bigint >> 16) & 255, g: (bigint >> 8) & 255, b: bigint & 255 }; }
+        function getOrdinalDay(day) { if (day > 3 && day < 21) return day + 'th'; switch (day % 10) { case 1: return day + "st"; case 2: return day + "nd"; case 3: return day + "rd"; default: return day + "th"; } }
+
+        /* --- 拖拽排序 --- */
+        function setupDragAndDrop(element) {
+            const handle = element.querySelector('.drag-handle');
+            handle.addEventListener('dragstart', (e) => { element.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+            element.addEventListener('dragend', () => {
+                element.classList.remove('dragging');
+                const newBlocksOrder = [];
+                document.querySelectorAll('.editor-block').forEach(blockEl => { const block = blocks.find(b => b.id === blockEl.dataset.id); if (block) newBlocksOrder.push(block); });
+                blocks = newBlocksOrder; renderPreview();
+            });
+            const container = document.getElementById('editor-content');
+            container.addEventListener('dragover', (e) => {
+                e.preventDefault(); const draggingElement = document.querySelector('.dragging'); if(!draggingElement) return;
+                const afterElement = getDragAfterElement(container, e.clientY);
+                if (afterElement == null) container.appendChild(draggingElement); else container.insertBefore(draggingElement, afterElement);
+            });
+        }
+        function getDragAfterElement(container, y) {
+            return [...container.querySelectorAll('.editor-block:not(.dragging)')].reduce((closest, child) => {
+                const box = child.getBoundingClientRect(); const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) return { offset: offset, element: child }; else return closest;
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        /* --- 暫存與匯出 --- */
+        function autoSaveListener() { setInterval(saveBlocksToLocalStorage, 1000); }
+        function saveBlocksToLocalStorage() { localStorage.setItem('nbm_blocks', JSON.stringify(blocks)); }
+        function saveSettings() {
+            localStorage.setItem('nbm_settings', JSON.stringify({
+                primary: getComputedStyle(document.documentElement).getPropertyValue('--primary-color'),
+                bg: getComputedStyle(document.documentElement).getPropertyValue('--bg-color'),
+                glass: document.getElementById('glass-switch').checked, dark: document.getElementById('darkmode-switch').checked,
+                width: document.getElementById('width-slider').value, sig1: document.getElementById('sig-line1').value,
+                sig2: document.getElementById('sig-line2').value, sigDate: document.getElementById('sig-date-format').value
+            }));
+        }
+        function loadLocalStorage() {
+            const storedBlocks = localStorage.getItem('nbm_blocks');
+            if (storedBlocks) { blocks = JSON.parse(storedBlocks); blocks.forEach(createEditorBlock); }
+            const s = JSON.parse(localStorage.getItem('nbm_settings'));
+            if (s) {
+                updatePrimaryColor(s.primary); updateBgColor(s.bg); document.getElementById('bgcolor-picker').value = s.bg.trim();
+                document.getElementById('glass-switch').checked = s.glass; toggleNoteGlassEffect();
+                document.getElementById('darkmode-switch').checked = s.dark; toggleDarkMode();
+                document.getElementById('width-slider').value = s.width; updateNoteWidth(s.width);
+                document.getElementById('sig-line1').value = s.sig1; document.getElementById('sig-line2').value = s.sig2;
+                document.getElementById('sig-date-format').value = s.sigDate; updateSignature();
+            }
+        }
+        function updateExportSize() {
+            const htmlContent = document.getElementById('preview-wrapper').outerHTML; const bytes = (encodeURI(htmlContent).split(/%..|./).length - 1) + 60000;
+            const k = 1024, sizes = ['B', 'KB', 'MB'], i = Math.floor(Math.log(bytes) / Math.log(k));
+            document.getElementById('export-size-info').innerText = `預估檔案容量: ${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+        }
+
+        function exportNotebookHTML() {
+            updateExportSize(); saveBlocksToLocalStorage(); saveSettings();
+            const previewHTML = document.getElementById('preview-wrapper').innerHTML;
+            const cssStyles = `
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: var(--font-family); background-color: var(--bg-color); color: var(--text-color); }
+        #nbm-read-container { width: 100%; display: flex; flex-direction: column; align-items: center; padding: 50px 0; }
+        #nbm-main-content { width: var(--note-width); max-width: 900px; display: flex; flex-direction: column; gap: 20px; }
+        
+        .preview-block { width: 100%; border-radius: var(--r-corner); background: var(--block-bg); padding: 25px; border: 1px solid var(--border-color); word-wrap: break-word; position: relative; backdrop-filter: blur(calc(20px * var(--note-glass-opacity))); -webkit-backdrop-filter: blur(calc(20px * var(--note-glass-opacity))); box-shadow: 0 4px 15px rgba(0,0,0,0.02); }
+        .preview-block:empty { display: none; }
+        
+        .spoiler-text { color: transparent; text-shadow: 0 0 8px var(--text-color); background: rgba(128, 128, 128, 0.15) url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noise)" opacity="0.12"/></svg>'); border-radius: 8px; padding: 2px 6px; cursor: pointer; user-select: none; display: inline-block; line-height: 1.2; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1); transition: all 0.3s ease; }
+        .spoiler-text.revealed { color: inherit; text-shadow: none; background: rgba(0,0,0,0.05); }
+        body.dark-mode .spoiler-text.revealed { background: rgba(255,255,255,0.05); }
+        
+        .md-table-wrapper { width: 100%; overflow-x: auto; margin: 15px 0; border-radius: 12px; }
+        .md-table-wrapper table { border-collapse: collapse; width: max-content; min-width: 100%; }
+        .md-table-wrapper th, .md-table-wrapper td { border: 1px solid var(--border-color); padding: 10px; text-align: left; }
+        
+        .calendar-container { width: 100%; font-size: 14px; }
+        .calendar-header { font-weight: bold; margin-bottom: 15px; display:flex; justify-content:space-between; font-size:1.1em;}
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; text-align: center; }
+        .calendar-day-label { font-weight: bold; color: #888; }
+        .calendar-date { padding: 10px; border-radius: 50%; cursor: pointer; }
+        .calendar-date.today { border: 2px solid var(--primary-color); font-weight: bold; }
+        .calendar-date.marked { background-color: var(--primary-color) !important; color: white; box-shadow: 0 4px 10px rgba(0,122,255,0.3); }
+        
+        .clock-wrapper { display: flex; justify-content: center; align-items: center; padding: 10px; }
+        .clock-digital { font-size: 3.5rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 2px; text-shadow: 0 4px 15px rgba(0,0,0,0.05); color: var(--text-color); }
+        .clock-analog { width: 150px; height: 150px; border-radius: 50%; border: 6px solid var(--border-color); background: rgba(255,255,255,0.1); box-shadow: inset 0 0 20px rgba(0,0,0,0.05); position: relative; }
+        .clock-hand { position: absolute; bottom: 50%; left: 50%; transform-origin: bottom; border-radius: 10px; background: var(--text-color); transition: transform 0.1s cubic-bezier(0.4, 2.08, 0.55, 0.44); }
+        .hand-hour { width: 6px; height: 40px; margin-left: -3px; background: var(--primary-color); z-index: 3;}
+        .hand-min { width: 4px; height: 55px; margin-left: -2px; z-index: 2;}
+        .hand-sec { width: 2px; height: 65px; margin-left: -1px; background: #ff3b30; z-index: 4;}
+        .clock-center { position: absolute; top: 50%; left: 50%; width: 12px; height: 12px; border-radius: 50%; background: var(--text-color); transform: translate(-50%, -50%); z-index: 5;}
+        .clock-flip { display: flex; gap: 12px; }
+        .flip-card { background: var(--text-color); color: var(--bg-color); padding: 15px 12px; border-radius: 12px; font-size: 2.5rem; font-weight: bold; font-variant-numeric: tabular-nums; position: relative; box-shadow: 0 8px 16px rgba(0,0,0,0.2); min-width: 60px; text-align: center; }
+        .flip-card::after { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: rgba(0,0,0,0.3); transform: translateY(-50%); }
+
+        a { color: var(--primary-color); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .image-container { display:flex; justify-content:center; }
+        .preview-img { max-width: 100%; border-radius: calc(var(--r-corner) - 4px); object-fit: contain; }
+        
+        #note-base { margin-top: 60px; width: 100%; text-align: center; border-top: 2px dashed var(--border-color); padding-top: 30px; color: #888; font-size: 15px; }
+        #read-watermark { position:fixed; bottom:20px; right:25px; font-size:14px; color:var(--watermark-color); font-family:'Comic Sans MS',cursive; font-weight:bold; pointer-events:none; }
+    `;
+
+            const fullHTML = `
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notebook Made with NBM</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --r-corner: ${getComputedStyle(document.documentElement).getPropertyValue('--r-corner')};
+            --bg-color: ${getComputedStyle(document.documentElement).getPropertyValue('--bg-color')};
+            --text-color: ${getComputedStyle(document.documentElement).getPropertyValue('--text-color')};
+            --block-bg: ${getComputedStyle(document.documentElement).getPropertyValue('--block-bg')};
+            --primary-color: ${getComputedStyle(document.documentElement).getPropertyValue('--primary-color')};
+            --note-glass-opacity: ${getComputedStyle(document.documentElement).getPropertyValue('--note-glass-opacity')};
+            --font-family: 'Noto Sans TC', 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+            --note-width: ${getComputedStyle(document.documentElement).getPropertyValue('--note-width')};
+            --border-color: ${getComputedStyle(document.documentElement).getPropertyValue('--border-color')};
+            --watermark-color: ${getComputedStyle(document.documentElement).getPropertyValue('--watermark-color')};
+        }
+        ${cssStyles}
+        ${document.body.classList.contains('dark-mode') ? 'body { background-color: var(--bg-color); color: var(--text-color); }' : ''}
+    </style>
+</head>
+<body class="${document.body.classList.contains('dark-mode') ? 'dark-mode' : ''}">
+    <div id="nbm-read-container">
+        <div id="nbm-main-content">${previewHTML}</div>
+        <div id="read-watermark">Made with Mimi's Notebook Maker</div>
+    </div>
+    <script>
+        // 劇透點擊監聽
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('spoiler-text')) {
+                e.target.classList.toggle('revealed');
+            }
+        });
+        
+        // 日曆互動支援
+        document.querySelectorAll('.calendar-date:not(.empty)').forEach(el => {
+            el.onclick = function() { this.classList.toggle('marked'); };
+        });
+
+        // 獨立版時鐘計時器
+        setInterval(() => {
+            const now = new Date();
+            const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+            const hs = String(h).padStart(2,'0'), ms = String(m).padStart(2,'0'), ss = String(s).padStart(2,'0');
+            
+            document.querySelectorAll('.clock-render-block').forEach(block => {
+                const type = block.dataset.clockType;
+                if (type === 'digital') {
+                    const el = block.querySelector('.clock-digital');
+                    if (el) el.innerText = \`\${hs}:\${ms}:\${ss}\`;
+                } else if (type === 'analog') {
+                    const hHand = block.querySelector('.hand-hour');
+                    const mHand = block.querySelector('.hand-min');
+                    const sHand = block.querySelector('.hand-sec');
+                    if(hHand && mHand && sHand) {
+                        hHand.style.transform = \`rotate(\${(h % 12) * 30 + m * 0.5}deg)\`;
+                        mHand.style.transform = \`rotate(\${m * 6 + s * 0.1}deg)\`;
+                        sHand.style.transform = \`rotate(\${s * 6}deg)\`;
+                    }
+                } else if (type === 'flip') {
+                    const fh = block.querySelector('.f-hour'); const fm = block.querySelector('.f-min'); const fs = block.querySelector('.f-sec');
+                    if (fh && fh.innerText !== hs) fh.innerText = hs;
+                    if (fm && fm.innerText !== ms) fm.innerText = ms;
+                    if (fs && fs.innerText !== ss) fs.innerText = ss;
+                }
+            });
+        }, 1000);
+    <\/script>
+</body>
+</html>`;
+
+            const blob = new Blob([fullHTML], { type: 'text/html' });
+            const url = URL.createObjectURL(blob); const a = document.createElement('a');
+            a.href = url; a.download = `my_notebook_${Date.now()}.html`;
+            document.body.appendChild(a); a.click(); URL.revokeObjectURL(url);
+            document.getElementById('export-modal').classList.add('active');
+        }
+
+        function closeModal() { document.getElementById('export-modal').classList.remove('active'); }
+    </script>
+</body>
+</html>
