@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Notebook Maker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        /* --- 核心樣式與變數 (OmniSearch Liquid Glass Base) --- */
+        :root {
+            --r-corner: 24px;
+            --note-width: 80%;
+            --bg-color: #f0f2f5; 
+            --text-color: #333333;
+            --ui-glass-bg: rgba(255, 255, 255, 0.45);
+            --ui-glass-border: rgba(255, 255, 255, 0.6);
+            --ui-glass-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            --theme-primary: #007AFF;
+        }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            overflow-x: hidden;
+            transition: background 0.3s;
+        }
+
+        /* 導覽列與主題選單 */
+        nav {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            padding: 15px 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--ui-glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--ui-glass-border);
+            z-index: 1000;
+        }
+
+        .nav-btn {
+            background: var(--ui-glass-bg);
+            border: 1px solid var(--ui-glass-border);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: 0.2s;
+        }
+
+        .nav-btn:hover { background: rgba(255, 255, 255, 0.8); }
+
+        .theme-container { position: relative; }
+        .theme-menu {
+            display: none;
+            position: absolute;
+            top: 120%; left: 0;
+            background: var(--ui-glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--ui-glass-border);
+            border-radius: 16px;
+            padding: 10px;
+            box-shadow: var(--ui-glass-shadow);
+            flex-direction: column;
+            gap: 8px;
+        }
+        .theme-menu.active { display: flex; }
+        .theme-option {
+            padding: 8px 16px; border-radius: 8px; cursor: pointer;
+            white-space: nowrap; transition: 0.2s;
+        }
+        .theme-option:hover { background: rgba(255, 255, 255, 0.5); }
+
+        /* 主內容區 */
+        main {
+            flex: 1;
+            padding: 100px 10% 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+        }
+
+        /* 模塊容器 */
+        .block {
+            width: var(--note-width);
+            background: var(--ui-glass-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--ui-glass-border);
+            border-radius: var(--r-corner);
+            padding: 20px;
+            box-shadow: var(--ui-glass-shadow);
+            position: relative;
+        }
+
+        .block-delete {
+            position: absolute;
+            top: -10px; right: -10px;
+            width: 30px; height: 30px;
+            background: #ff3b30; color: white;
+            border: none; border-radius: 50%;
+            cursor: pointer; display: flex;
+            align-items: center; justify-content: center;
+            font-size: 18px; z-index: 10;
+        }
+
+        /* Markdown 輸入區 */
+        textarea.md-input {
+            width: 100%; min-height: 150px;
+            background: transparent; border: none;
+            resize: vertical; font-family: inherit; font-size: 16px;
+            color: var(--text-color); outline: none;
+        }
+
+        /* Apple 144 色選單 */
+        .color-palette-container {
+            margin-top: 10px; padding-top: 10px;
+            border-top: 1px solid rgba(0,0,0,0.1);
+        }
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 4px;
+            padding: 8px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 12px;
+        }
+        .color-swatch {
+            aspect-ratio: 1;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 1px solid rgba(0,0,0,0.05);
+            transition: transform 0.1s;
+        }
+        .color-swatch:hover { transform: scale(1.15); border-color: #000; }
+
+        /* 字卡模塊 (編輯模式) */
+        .flashcard-edit { display: flex; flex-direction: column; gap: 10px; }
+        .flashcard-edit input {
+            padding: 15px; border-radius: 12px;
+            border: 1px solid var(--ui-glass-border);
+            background: rgba(255,255,255,0.5);
+            font-size: 16px; outline: none; color: var(--text-color);
+        }
+
+        /* 時鐘模塊 */
+        .clock-preview {
+            font-size: 3rem; font-weight: bold; text-align: center;
+            letter-spacing: 2px; color: var(--theme-primary);
+        }
+
+        /* 新增模塊選單 (確保在下方) */
+        .add-container {
+            position: relative;
+            margin-top: 20px;
+            display: flex; justify-content: center;
+        }
+        .add-btn {
+            width: 50px; height: 50px;
+            border-radius: 50%; border: none;
+            background: var(--theme-primary); color: white;
+            font-size: 28px; cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 122, 255, 0.4);
+            transition: 0.3s; z-index: 50;
+        }
+        .add-btn:hover { transform: scale(1.05); }
+        .module-menu {
+            display: none; position: absolute;
+            top: 100%; left: 50%;
+            transform: translateX(-50%); margin-top: 15px;
+            background: var(--ui-glass-bg); backdrop-filter: blur(20px);
+            border: 1px solid var(--ui-glass-border); border-radius: 16px;
+            padding: 10px; gap: 8px; flex-direction: column;
+            box-shadow: var(--ui-glass-shadow); z-index: 40;
+        }
+        .module-menu.active { display: flex; }
+        .module-btn {
+            background: transparent; border: none; padding: 10px 20px;
+            font-size: 16px; cursor: pointer; border-radius: 8px; white-space: nowrap;
+        }
+        .module-btn:hover { background: rgba(255, 255, 255, 0.6); }
+
+        /* 頁尾與浮水印 */
+        footer {
+            margin-top: auto; padding: 40px 0 20px;
+            text-align: center;
+        }
+        .signature-lines {
+            display: inline-block; text-align: left;
+            margin-bottom: 20px; color: var(--text-color);
+            font-style: italic; opacity: 0.8;
+        }
+        .watermark {
+            font-size: 14px; color: #888;
+            opacity: 0.6; display: block;
+        }
+
+        /* 匯出 Modal */
+        .modal {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.5); backdrop-filter: blur(5px);
+            align-items: center; justify-content: center; z-index: 2000;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: var(--bg-color); padding: 30px;
+            border-radius: var(--r-corner); text-align: center;
+            width: 90%; max-width: 400px; box-shadow: var(--ui-glass-shadow);
+        }
+        .modal-btn {
+            margin-top: 20px; padding: 10px 24px;
+            background: var(--theme-primary); color: white;
+            border: none; border-radius: 12px; cursor: pointer; font-size: 16px;
+        }
+
+        @media (max-width: 768px) {
+            :root { --note-width: 95%; }
+            main { padding: 80px 5% 40px; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="theme-container">
+            <button class="nav-btn" id="theme-btn">主題風格</button>
+            <div class="theme-menu" id="theme-menu">
+                <div class="theme-option" onclick="setTheme('light')">Light Glass</div>
+                <div class="theme-option" onclick="setTheme('dark')">Dark Glass</div>
+                <div class="theme-option" onclick="setTheme('sepia')">Sepia Reading</div>
+            </div>
+        </div>
+        <button class="nav-btn" onclick="prepareExport()">匯出筆記</button>
+    </nav>
+
+    <main id="editor-area">
+        </main>
+
+    <div class="add-container">
+        <button class="add-btn" id="add-btn" onclick="toggleAddMenu()">+</button>
+        <div class="module-menu" id="module-menu">
+            <button class="module-btn" onclick="addBlock('markdown')">📝 文字與顏色區塊</button>
+            <button class="module-btn" onclick="addBlock('flashcard')">🔄 互動式翻轉字卡</button>
+            <button class="module-btn" onclick="addBlock('clock')">⏰ 翻頁時鐘模塊</button>
+        </div>
+    </div>
+
+    <footer>
+        <div class="signature-lines" contenteditable="true">
+            Written by User<br>
+            Date: 2026<br>
+            Location: Hsinchu
+        </div>
+        <div class="watermark">Created with Notebook Maker (Liquid Glass Base)</div>
+    </footer>
+
+    <div class="modal" id="export-modal">
+        <div class="modal-content">
+            <h3>匯出成功！</h3>
+            <p>檔案大小預估：<strong id="file-size">計算中...</strong></p>
+            <p style="font-size: 14px; color: #666; margin-top: 10px;">互動字卡、時鐘與自訂色彩皆已打包完成。</p>
+            <button class="modal-btn" onclick="closeModal()">確認並關閉</button>
+        </div>
+    </div>
+
+    <script>
+        // --- 主題與 UX 邏輯 ---
+        let themeTimer;
+        const themeMenu = document.getElementById('theme-menu');
+        const themeBtn = document.getElementById('theme-btn');
+        const moduleMenu = document.getElementById('module-menu');
+        const addBtn = document.getElementById('add-btn');
+
+        // 電腦版滑鼠離開 1.5 秒收合
+        const startThemeTimer = () => {
+            themeTimer = setTimeout(() => { themeMenu.classList.remove('active'); }, 1500);
+        };
+        const stopThemeTimer = () => { clearTimeout(themeTimer); };
+
+        themeBtn.addEventListener('mouseenter', () => { stopThemeTimer(); themeMenu.classList.add('active'); });
+        themeMenu.addEventListener('mouseenter', stopThemeTimer);
+        themeBtn.addEventListener('mouseleave', startThemeTimer);
+        themeMenu.addEventListener('mouseleave', startThemeTimer);
+
+        // 手機/平板點擊收合 (防阻擋)
+        document.addEventListener('click', (e) => {
+            if (!themeBtn.contains(e.target) && !themeMenu.contains(e.target)) {
+                themeMenu.classList.remove('active');
+            }
+            if (!addBtn.contains(e.target) && !moduleMenu.contains(e.target)) {
+                moduleMenu.classList.remove('active');
+            }
+        });
+
+        function toggleAddMenu() { moduleMenu.classList.toggle('active'); }
+
+        const themes = {
+            light: { bg: '#f0f2f5', text: '#333333', ui: 'rgba(255, 255, 255, 0.45)' },
+            dark: { bg: '#1a1a1a', text: '#f0f0f0', ui: 'rgba(50, 50, 50, 0.6)' },
+            sepia: { bg: '#f4ecd8', text: '#433422', ui: 'rgba(255, 245, 225, 0.5)' }
+        };
+        let currentTheme = 'light';
+
+        function setTheme(t) {
+            currentTheme = t;
+            const root = document.documentElement;
+            root.style.setProperty('--bg-color', themes[t].bg);
+            root.style.setProperty('--text-color', themes[t].text);
+            root.style.setProperty('--ui-glass-bg', themes[t].ui);
+            themeMenu.classList.remove('active');
+        }
+
+        // --- 生成 Apple 144 色光譜 ---
+        function getApple144Colors() {
+            let colors = [];
+            // Row 1: 12階灰階
+            for(let i=0; i<12; i++) { colors.push(`hsl(0, 0%, ${100 - (i*8.5)}%)`); }
+            // Row 2-12: 11個色相，每個色相 12 種明度/彩度變化
+            for(let h=0; h<11; h++) {
+                let hue = h * (360/11);
+                for(let l=0; l<12; l++) {
+                    let lightness = 90 - (l * 6.5);
+                    colors.push(`hsl(${hue}, 85%, ${lightness}%)`);
+                }
+            }
+            return colors;
+        }
+        const apple144 = getApple144Colors();
+
+        // --- 模塊生成邏輯 ---
+        function addBlock(type) {
+            moduleMenu.classList.remove('active');
+            const editorArea = document.getElementById('editor-area');
+            const block = document.createElement('div');
+            block.className = 'block';
+            block.dataset.type = type;
+
+            const delBtn = document.createElement('button');
+            delBtn.className = 'block-delete';
+            delBtn.innerHTML = '×';
+            delBtn.onclick = () => block.remove();
+            block.appendChild(delBtn);
+
+            if (type === 'markdown') {
+                const ta = document.createElement('textarea');
+                ta.className = 'md-input';
+                ta.placeholder = '在此輸入 Markdown 筆記... (可選擇下方顏色變更背景)';
+                
+                const paletteContainer = document.createElement('div');
+                paletteContainer.className = 'color-palette-container';
+                const colorGrid = document.createElement('div');
+                colorGrid.className = 'color-grid';
+                
+                apple144.forEach(color => {
+                    const swatch = document.createElement('div');
+                    swatch.className = 'color-swatch';
+                    swatch.style.backgroundColor = color;
+                    swatch.onclick = () => { block.dataset.bgColor = color; block.style.backgroundColor = color; };
+                    colorGrid.appendChild(swatch);
+                });
+                
+                paletteContainer.appendChild(colorGrid);
+                block.appendChild(ta);
+                block.appendChild(paletteContainer);
+
+            } else if (type === 'flashcard') {
+                const fcEdit = document.createElement('div');
+                fcEdit.className = 'flashcard-edit';
+                
+                const frontInput = document.createElement('input');
+                frontInput.className = 'fc-front-input';
+                frontInput.placeholder = '輸入字卡正面文字 (如: 題目、單字)';
+                
+                const backInput = document.createElement('input');
+                backInput.className = 'fc-back-input';
+                backInput.placeholder = '輸入字卡背面文字 (如: 答案、解釋)';
+                
+                fcEdit.appendChild(frontInput);
+                fcEdit.appendChild(backInput);
+                block.appendChild(fcEdit);
+
+            } else if (type === 'clock') {
+                const preview = document.createElement('div');
+                preview.className = 'clock-preview';
+                preview.innerText = '翻頁時鐘模塊 (匯出後顯示)';
+                block.appendChild(preview);
+            }
+
+            editorArea.appendChild(block);
+        }
+
+        // 初始化給一個預設文字方塊
+        addBlock('markdown');
+
+        // --- 匯出邏輯與精準檔案大小預測 ---
+        function prepareExport() {
+            const blocks = document.querySelectorAll('.block');
+            let contentHTML = '';
+
+            blocks.forEach(block => {
+                const type = block.dataset.type;
+                const bgColor = block.dataset.bgColor || 'var(--ui-glass-bg)';
+
+                if (type === 'markdown') {
+                    const mdText = block.querySelector('.md-input').value;
+                    const htmlContent = marked.parse(mdText);
+                    contentHTML += `<div class="exp-block md-block" style="background: ${bgColor}">${htmlContent}</div>`;
+                
+                } else if (type === 'flashcard') {
+                    const front = block.querySelector('.fc-front-input').value || '正面';
+                    const back = block.querySelector('.fc-back-input').value || '背面';
+                    // 匯出用的互動字卡 HTML (包含點擊翻轉邏輯)
+                    contentHTML += `
+                        <div class="exp-block flashcard" onclick="this.querySelector('.fc-inner').classList.toggle('is-flipped')">
+                            <div class="fc-inner">
+                                <div class="fc-front" style="background: ${bgColor}">${marked.parse(front)}</div>
+                                <div class="fc-back">${marked.parse(back)}</div>
+                            </div>
+                        </div>`;
+                
+                } else if (type === 'clock') {
+                    // 修正翻頁時鐘結構，搭配中心翻轉動畫 CSS
+                    contentHTML += `
+                        <div class="exp-block clock-block">
+                            <div class="flip-clock" id="flip-clock-${Date.now()}">
+                                <div class="flip-unit"><div class="flip-card f-hour">00</div></div>
+                                <span class="colon">:</span>
+                                <div class="flip-unit"><div class="flip-card f-min">00</div></div>
+                                <span class="colon">:</span>
+                                <div class="flip-unit"><div class="flip-card f-sec">00</div></div>
+                            </div>
+                        </div>`;
+                }
+            });
+
+            const sigHTML = document.querySelector('.signature-lines').innerHTML;
+
+            const fullHTML = `<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notebook Export</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: ${themes[currentTheme].bg};
+            --text-color: ${themes[currentTheme].text};
+            --ui-glass-bg: ${themes[currentTheme].ui};
+            --ui-glass-border: rgba(255, 255, 255, 0.4);
+            --ui-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            --r-corner: 24px;
+        }
+        body {
+            font-family: 'Noto Sans TC', sans-serif; background: var(--bg-color);
+            color: var(--text-color); margin: 0; padding: 40px 10%;
+            display: flex; flex-direction: column; min-height: 100vh; align-items: center; gap: 25px;
+        }
+        .exp-block {
+            width: 80%; max-width: 800px;
+            background: var(--ui-glass-bg); backdrop-filter: blur(16px);
+            border: 1px solid var(--ui-glass-border); border-radius: var(--r-corner);
+            padding: 30px; box-shadow: var(--ui-glass-shadow); line-height: 1.6;
+        }
+        /* 字卡 CSS */
+        .flashcard { perspective: 1000px; cursor: pointer; padding: 0; background: transparent; border: none; box-shadow: none; min-height: 200px; }
+        .fc-inner { position: relative; width: 100%; height: 100%; min-height: 200px; transition: transform 0.6s; transform-style: preserve-3d; }
+        .fc-inner.is-flipped { transform: rotateX(-180deg); }
+        .fc-front, .fc-back { 
+            position: absolute; inset: 0; backface-visibility: hidden; 
+            display: flex; align-items: center; justify-content: center; text-align: center;
+            border-radius: var(--r-corner); padding: 30px; 
+            background: var(--ui-glass-bg); border: 1px solid var(--ui-glass-border); box-shadow: var(--ui-glass-shadow);
+        }
+        .fc-back { transform: rotateX(180deg); background: rgba(0, 122, 255, 0.1); }
+        
+        /* 翻頁時鐘 CSS (中心翻轉) */
+        .clock-block { display: flex; justify-content: center; }
+        .flip-clock { display: flex; gap: 15px; font-size: 4rem; font-weight: bold; font-family: monospace; }
+        .flip-unit { background: #222; color: #fff; border-radius: 12px; padding: 20px; min-width: 80px; text-align: center; position: relative; perspective: 400px; }
+        .flip-card { display: inline-block; transform-origin: center center; }
+        .colon { display: flex; align-items: center; color: var(--text-color); }
+        @keyframes flipCenter {
+            0% { transform: rotateX(0deg); }
+            50% { transform: rotateX(-90deg); opacity: 0; }
+            50.01% { transform: rotateX(90deg); opacity: 1; }
+            100% { transform: rotateX(0deg); }
+        }
+        .flip-animate { animation: flipCenter 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+
+        footer { text-align: center; margin-top: auto; padding: 40px 0 20px; width: 100%; }
+        .signature-lines { display: inline-block; text-align: left; font-style: italic; opacity: 0.8; margin-bottom: 15px;}
+        .watermark { font-size: 14px; color: #888; opacity: 0.6; }
+        
+        @media (max-width: 768px) { .exp-block { width: 100%; } .flip-clock { font-size: 2.5rem; gap: 8px;} .flip-unit{ padding: 10px; min-width: 50px;} }
+    </style>
+</head>
+<body>
+    ${contentHTML}
+    <footer>
+        <div class="signature-lines">${sigHTML}</div>
+        <div class="watermark">Created with Notebook Maker (Liquid Glass Base)</div>
+    </footer>
+    <script>
+        // 匯出後的翻頁時鐘運作邏輯 (中心翻轉)
+        function updateClocks() {
+            const clocks = document.querySelectorAll('.flip-clock');
+            if(clocks.length === 0) return;
+            const now = new Date();
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+
+            clocks.forEach(clock => {
+                const fh = clock.querySelector('.f-hour');
+                const fm = clock.querySelector('.f-min');
+                const fs = clock.querySelector('.f-sec');
+                
+                const updateCard = (el, val) => {
+                    if(el.innerText !== val) {
+                        el.classList.remove('flip-animate');
+                        void el.offsetWidth; // trigger reflow
+                        el.classList.add('flip-animate');
+                        setTimeout(() => { el.innerText = val; }, 300); // 在動畫一半時改變文字
+                    }
+                };
+                updateCard(fh, h);
+                updateCard(fm, m);
+                updateCard(fs, s);
+            });
+        }
+        setInterval(updateClocks, 1000);
+        updateClocks();
+    <\/script>
+</body>
+</html>`;
+
+            // 精準計算檔案大小
+            const blob = new Blob([fullHTML], { type: 'text/html' });
+            const sizeBytes = blob.size;
+            let sizeDisplay = sizeBytes + " B";
+            if (sizeBytes > 1048576) sizeDisplay = (sizeBytes / 1048576).toFixed(2) + " MB";
+            else if (sizeBytes > 1024) sizeDisplay = (sizeBytes / 1024).toFixed(2) + " KB";
+            
+            document.getElementById('file-size').innerText = sizeDisplay;
+
+            // 觸發下載
+            const url = URL.createObjectURL(blob); 
+            const a = document.createElement('a');
+            a.href = url; a.download = `Mimi_Notebook_${Date.now()}.html`;
+            document.body.appendChild(a); a.click(); 
+            URL.revokeObjectURL(url);
+            
+            document.getElementById('export-modal').classList.add('active');
+        }
+
+        function closeModal() { document.getElementById('export-modal').classList.remove('active'); }
+    </script>
+</body>
+</html>
