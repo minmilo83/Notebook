@@ -3,28 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Liquid Glass Buttons</title>
+    <title>Mimi's Liquid Glass Hub</title>
     <style>
         :root {
-            --glass-bg: rgba(255, 255, 255, 0.1);
-            --glass-border: rgba(255, 255, 255, 0.2);
-            --blur-strength: 15px;
-            --text-color: #ffffff;
+            /* 定義嫩色系七彩色彩 */
+            --color-1: #ffdae0; /* 櫻花粉 */
+            --color-2: #fff3da; /* 奶油黃 */
+            --color-3: #daffdf; /* 薄荷綠 */
+            --color-4: #dafbff; /* 天空藍 */
+            --color-5: #e6daff; /* 薰衣草紫 */
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
         body {
-            margin: 0;
             height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            /* 動態流體背景 */
+            background: linear-gradient(45deg, var(--color-1), var(--color-2), var(--color-3), var(--color-4), var(--color-5));
             background-size: 400% 400%;
-            animation: gradientBG 15s ease infinite;
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            animation: fluidGradient 15s ease infinite;
+            overflow: hidden;
         }
 
-        @keyframes gradientBG {
+        @keyframes fluidGradient {
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
             100% { background-position: 0% 50%; }
@@ -35,62 +44,37 @@
             flex-direction: column;
             gap: 25px;
             padding: 40px;
+            /* 玻璃質感核心語法 */
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
             border-radius: 30px;
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            border: 1px solid var(--glass-border);
-            box-shadow: 0 25px 45px rgba(0,0,0,0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
         }
 
         .glass-btn {
-            position: relative;
+            display: block;
             padding: 15px 40px;
-            min-width: 200px;
-            text-align: center;
             text-decoration: none;
-            color: var(--text-color);
-            font-weight: 500;
-            letter-spacing: 1px;
+            color: #555;
+            font-weight: 600;
             font-size: 1.1rem;
-            
-            /* Liquid Glass Effect */
-            background: var(--glass-bg);
-            backdrop-filter: blur(var(--blur-strength));
-            -webkit-backdrop-filter: blur(var(--blur-strength));
-            border: 1px solid var(--glass-border);
+            text-align: center;
+            background: rgba(255, 255, 255, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.5);
             border-radius: 15px;
-            
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-            overflow: hidden;
-        }
-
-        /* 增加液態流動感的反光層 */
-        .glass-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(
-                90deg,
-                transparent,
-                rgba(255, 255, 255, 0.2),
-                transparent
-            );
-            transition: 0.5s;
-        }
-
-        .glass-btn:hover::before {
-            left: 100%;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
         }
 
         .glass-btn:hover {
-            transform: translateY(-5px);
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.5);
+            background: rgba(255, 255, 255, 0.7);
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            letter-spacing: 1px;
+            color: #222;
         }
 
         .glass-btn:active {
@@ -101,9 +85,9 @@
 <body>
 
     <div class="container">
-        <a href="https://minmilo83.github.io/Notebook/Maker/editor_V1.html" class="glass-btn" target="_blank">Editor V1</a>
-        <a href="https://minmilo83.github.io/Notebook/Maker/editor_V2.html" class="glass-btn" target="_blank">Editor V2</a>
-        <a href="https://minmilo83.github.io/Notebook/Maker/editor_V3.html" class="glass-btn" target="_blank">Editor V3</a>
+        <a href="https://minmilo83.github.io/Notebook/Maker/editor_V1.html" class="glass-btn">Editor Version 1</a>
+        <a href="https://minmilo83.github.io/Notebook/Maker/editor_V2.html" class="glass-btn">Editor Version 2</a>
+        <a href="https://minmilo83.github.io/Notebook/Maker/editor_V3.html" class="glass-btn">Editor Version 3</a>
     </div>
 
 </body>
