@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Notebook Maker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        /* --- 核心樣式與變數 (OmniSearch Liquid Glass Base) --- */
+        :root {
+            /* 圓潤大 R 角 */
+            --r-corner: 24px;
+            --note-width: 80%;
+            
+            --bg-color: #f0f2f5; 
+            --text-color: #333333;
+            
+            /* 平台恆定 Liquid Glass 變數 */
+            --ui-glass-bg: rgba(255, 255, 255, 0.45);
+            --ui-glass-border: rgba(255, 255, 255, 0.6);
+            --ui-glass-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+            --ui-glass-blur: blur(25px);
+
+            /* 成品模塊的背景 (動態受開關控制) */
+            --block-bg: rgba(255, 255, 255, 0.7); 
+            --border-color: rgba(255, 255, 255, 0.4);
+            --note-glass-opacity: 1; /* 1為開啟毛玻璃, 0為實體背景 */
+            
+            --primary-color: #007aff; 
+            --font-family: 'Noto Sans TC', 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+            --watermark-color: rgba(0, 0, 0, 0.15);
+        }
+
+        body.dark-mode {
+            --bg-color: #1a1a1a;
+            --text-color: #f0f0f0;
+            --ui-glass-bg: rgba(30, 30, 30, 0.55);
+            --ui-glass-border: rgba(255, 255, 255, 0.1);
+            --ui-glass-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            --watermark-color: rgba(255, 255, 255, 0.15);
+        }
+
+        * { box-sizing: border-box; outline: none; }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            overflow: hidden; 
+            transition: background-color 0.2s ease, color 0.5s ease;
+        }
+
+        /* --- 6:4 布局 --- */
+        #app-container { display: flex; height: 100vh; width: 100vw; }
+
+        #editor-region {
+            flex: 0 0 60%; height: 100%;
+            background: var(--ui-glass-bg);
+            backdrop-filter: var(--ui-glass-blur);
+            -webkit-backdrop-filter: var(--ui-glass-blur);
+            border-right: 1px solid var(--ui-glass-border);
+            box-shadow: var(--ui-glass-shadow);
+            display: flex; flex-direction: column;
+            overflow-y: auto; 
+            transition: background 0.4s ease;
+            position: relative; z-index: 10;
+        }
+
+        #preview-region {
+            flex: 1; height: 100%;
+            background-color: transparent; 
+            overflow-y: auto; position: relative;
+        }
+
+        /* --- 主題設定選單 --- */
+        #theme-panel {
+            position: fixed; left: -340px; top: 0;
+            width: 320px; height: 100vh;
+            background: var(--ui-glass-bg);
+            backdrop-filter: var(--ui-glass-blur);
+            -webkit-backdrop-filter: var(--ui-glass-blur);
+            border-right: 1px solid var(--ui-glass-border);
+            box-shadow: var(--ui-glass-shadow);
+            border-top-right-radius: var(--r-corner);
+            border-bottom-right-radius: var(--r-corner);
+            z-index: 1000;
+            transition: left 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            padding: 30px 20px; overflow-y: auto;
+            display: flex; flex-direction: column; gap: 18px;
+        }
+        #theme-panel.active { left: 0; }
+
+        #theme-toggle-btn {
+            position: fixed; left: 20px; top: 20px; z-index: 1001;
+            background: var(--ui-glass-bg);
+            backdrop-filter: var(--ui-glass-blur);
+            border: 1px solid var(--ui-glass-border);
+            color: var(--text-color);
+            width: 50px; height: 50px;
+            border-radius: 50%; cursor: pointer;
+            box-shadow: var(--ui-glass-shadow);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        #theme-toggle-btn:hover {
+            background: var(--primary-color); color: white; border-color: var(--primary-color); transform: scale(1.05);
+        }
+
+        /* --- 編輯區 --- */
+        #editor-content { padding: 90px 30px 20px 30px; width: 100%; display: flex; flex-direction: column; align-items: center; }
+
+        .editor-block {
+            width: 100%; max-width: 800px; 
+            background: var(--ui-glass-bg);
+            border: 1px solid var(--ui-glass-border);
+            border-radius: var(--r-corner);
+            padding: 20px; margin-bottom: 25px;
+            position: relative; transition: all 0.3s ease;
+            box-shadow: var(--ui-glass-shadow);
+        }
+        .editor-block:focus-within {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15), var(--ui-glass-shadow);
+            transform: translateY(-2px);
+        }
+
+        .block-input {
+            width: 100%; background: transparent; border: none;
+            color: var(--text-color); font-family: var(--font-family);
+            font-size: 16px; resize: none; overflow: hidden; line-height: 1.7;
+        }
+
+        /* --- 預覽區 --- */
+        #preview-wrapper { padding: 50px 0; width: 100%; display: flex; flex-direction: column; align-items: center; }
+        
+        /* 增加預覽模塊的空隙，避免壅擠 */
+        #preview-content { width: var(--note-width); transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; gap: 40px; }
+
+        .preview-block {
+            width: 100%; border-radius: var(--r-corner);
+            background: var(--block-bg); padding: 30px;
+            transition: background-color 0.4s ease, backdrop-filter 0.4s ease, border-color 0.4s ease;
+            word-wrap: break-word; position: relative;
+            backdrop-filter: blur(calc(25px * var(--note-glass-opacity)));
+            -webkit-backdrop-filter: blur(calc(25px * var(--note-glass-opacity)));
+            border: 1px solid var(--border-color);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.05);
+        }
+        .preview-block:empty::before { content: "請輸入內容..."; color: #aaa; font-style: italic; }
+
+        /* --- 特殊功能樣式 --- */
+
+        .spoiler-text {
+            color: transparent; 
+            text-shadow: 0 0 8px var(--text-color);
+            background: rgba(128, 128, 128, 0.15) url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noise)" opacity="0.12"/></svg>');
+            border-radius: 8px; padding: 2px 6px;
+            cursor: pointer; user-select: none; 
+            transition: all 0.3s ease; display: inline-block; line-height: 1.2;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1);
+        }
+        .spoiler-text.revealed { color: inherit; text-shadow: none; background: rgba(0,0,0,0.05); }
+        body.dark-mode .spoiler-text.revealed { background: rgba(255,255,255,0.05); }
+
+        .md-table-wrapper { width: 100%; overflow-x: auto; margin: 15px 0; border-radius: 12px; }
+        .md-table-wrapper table { border-collapse: collapse; width: max-content; min-width: 100%; }
+        .md-table-wrapper th, .md-table-wrapper td { border: 1px solid var(--border-color); padding: 10px; text-align: left; }
+
+        .calendar-container { width: 100%; font-size: 14px; }
+        .calendar-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; margin-bottom: 15px; font-size: 1.1em;}
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; text-align: center; }
+        .calendar-day-label { font-weight: bold; color: #888; }
+        .calendar-date { padding: 10px; border-radius: 50%; cursor: pointer; transition: all 0.2s ease; }
+        .calendar-date:not(.empty):hover { background-color: rgba(0, 0, 0, 0.05); transform: scale(1.1); }
+        .calendar-date.today { border: 2px solid var(--primary-color); font-weight: bold; }
+        .calendar-date.marked { background-color: var(--primary-color) !important; color: white; box-shadow: 0 4px 10px rgba(0,122,255,0.3); }
+
+        .image-container { width: 100%; display: flex; justify-content: center; align-items: center; }
+        .preview-img { max-width: 100%; border-radius: calc(var(--r-corner) - 4px); object-fit: contain; }
+
+        /* --- 時鐘模塊 --- */
+        .clock-wrapper { display: flex; justify-content: center; align-items: center; padding: 10px; }
+        .clock-digital { font-size: 3.5rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 2px; text-shadow: 0 4px 15px rgba(0,0,0,0.05); color: var(--text-color); }
+        
+        /* 翻頁時鐘包含動畫 */
+        .clock-flip { display: flex; gap: 12px; perspective: 1000px; }
+        /* 修正：翻頁動畫從中心翻轉 */
+        .flip-card { 
+            background: var(--text-color); color: var(--bg-color); padding: 15px 12px; 
+            border-radius: 12px; font-size: 2.5rem; font-weight: bold; font-variant-numeric: tabular-nums; 
+            position: relative; box-shadow: 0 8px 16px rgba(0,0,0,0.2); min-width: 60px; 
+            text-align: center; transform-style: preserve-3d; 
+            transform-origin: center center; /* 中央翻轉 */
+        }
+        .flip-card::after { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: rgba(0,0,0,0.4); transform: translateY(-50%); z-index: 2;}
+        @keyframes flipAnim {
+            0% { transform: rotateX(0deg); }
+            50% { transform: rotateX(-90deg); background-color: var(--primary-color); color: #fff;}
+            100% { transform: rotateX(0deg); }
+        }
+        .flip-card.flipping { animation: flipAnim 0.4s cubic-bezier(0.4, 2.08, 0.55, 0.44); }
+
+        /* --- 字卡模塊 (Quizlet 樣式) --- */
+        .flashcard-container {
+            perspective: 1000px;
+            width: 100%;
+            height: 200px;
+            cursor: pointer;
+        }
+        .flashcard-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+            transform-style: preserve-3d;
+        }
+        .flashcard-container.flipped .flashcard-inner {
+            transform: rotateY(180deg);
+        }
+        .flashcard-front, .flashcard-back {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            border-radius: var(--r-corner);
+            background: var(--block-bg);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.05);
+            font-size: 1.2rem;
+            font-weight: 500;
+        }
+        .flashcard-back {
+            transform: rotateY(180deg);
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        /* 去除外層 preview-block 背景，讓字卡自帶背景 */
+        .preview-block.flashcard-block {
+            padding: 0; background: transparent; border: none; box-shadow: none; backdrop-filter: none;
+        }
+        
+        .editor-flashcard-inputs {
+            display: flex; flex-direction: column; gap: 10px; margin-top: 10px;
+        }
+
+        /* --- UI 互動元件 --- */
+        .block-actions {
+            position: absolute; left: -50px; top: 50%; transform: translateY(-50%);
+            display: flex; flex-direction: column; gap: 10px; opacity: 0; transition: opacity 0.3s ease;
+        }
+        .editor-block:hover .block-actions { opacity: 1; }
+
+        .drag-handle { width: 36px; height: 36px; cursor: grab; background: var(--ui-glass-bg); backdrop-filter: var(--ui-glass-blur); border: 1px solid var(--ui-glass-border); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--text-color); font-weight: bold; box-shadow: var(--ui-glass-shadow);}
+        .delete-btn { width: 36px; height: 36px; cursor: pointer; background: rgba(255, 60, 48, 0.1); color: #ff3b30; border: 1px solid rgba(255, 60, 48, 0.2); border-radius: 12px; font-size: 16px; transition: all 0.2s;}
+        .delete-btn:hover { background: rgba(255, 60, 48, 0.2); transform: scale(1.1); }
+
+        #add-block-wrapper {
+            position: relative; text-align: center; margin: 20px 0 120px 0; align-self: center; display: flex; flex-direction: column; align-items: center;
+        }
+
+        #add-block-btn {
+            width: 60px; height: 60px; border-radius: 50%;
+            background: var(--ui-glass-bg); backdrop-filter: var(--ui-glass-blur);
+            border: 1px solid var(--ui-glass-border);
+            color: var(--text-color); font-size: 28px; cursor: pointer;
+            box-shadow: var(--ui-glass-shadow); transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative; z-index: 2;
+        }
+        #add-block-btn:hover { background: var(--primary-color); color: white; border-color: var(--primary-color); transform: translateY(-3px) scale(1.05); box-shadow: 0 15px 30px rgba(0,122,255,0.3);}
+
+        /* 模塊選單強制作為子元素垂直居中彈出 */
+        #add-block-menu {
+            position: absolute;
+            top: calc(100% + 15px);
+            left: 50%;
+            transform: translateX(-50%) translateY(-20px) scale(0.9);
+            background: var(--ui-glass-bg);
+            backdrop-filter: var(--ui-glass-blur);
+            -webkit-backdrop-filter: var(--ui-glass-blur);
+            border-radius: var(--r-corner);
+            border: 1px solid var(--ui-glass-border);
+            padding: 20px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;
+            opacity: 0; visibility: hidden; pointer-events: none;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 999; box-shadow: 0 20px 50px rgba(0,0,0,0.15); width: max-content;
+        }
+        #add-block-menu.active { opacity: 1; visibility: visible; pointer-events: auto; transform: translateX(-50%) translateY(0) scale(1); }
+
+        .menu-item {
+            border: 1px solid var(--ui-glass-border); border-radius: 16px; padding: 15px 20px;
+            background: rgba(255, 255, 255, 0.2); cursor: pointer; text-align: center;
+            transition: all 0.3s ease; font-size: 14px; font-weight: 500;
+        }
+        body.dark-mode .menu-item { background: rgba(0,0,0,0.2); }
+        .menu-item:hover { background: var(--primary-color); color: white; transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.1); border-color: var(--primary-color); }
+
+        /* --- 浮動文字選單 --- */
+        #inline-toolbar {
+            position: absolute;
+            background: var(--ui-glass-bg); 
+            backdrop-filter: var(--ui-glass-blur);
+            -webkit-backdrop-filter: var(--ui-glass-blur);
+            border-radius: 16px; padding: 8px; display: flex; gap: 6px;
+            z-index: 1002; opacity: 0; visibility: hidden;
+            transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: translateY(15px) scale(0.95);
+            border: 1px solid var(--ui-glass-border);
+            box-shadow: var(--ui-glass-shadow); align-items: center; width: max-content;
+        }
+        #inline-toolbar.active { opacity: 1; visibility: visible; transform: translateY(0) scale(1); }
+
+        .toolbar-btn {
+            background: transparent; border: none; color: var(--text-color);
+            padding: 8px 12px; cursor: pointer; border-radius: 10px; font-size: 15px;
+            transition: all 0.2s; display: flex; align-items: center; justify-content: center; font-weight: 500;
+        }
+        .toolbar-btn:hover { background: rgba(0,0,0,0.05); transform: translateY(-1px); }
+        body.dark-mode .toolbar-btn:hover { background: rgba(255,255,255,0.1); }
+        
+        #text-style-select { background: transparent; color: var(--text-color); border: none; padding: 4px; border-radius: 8px; cursor: pointer; font-weight: 500; }
+        #text-style-select option { color: black; }
+
+        /* 144色選單彈窗 */
+        .color-picker-popup {
+            position: absolute; background: var(--ui-glass-bg); backdrop-filter: var(--ui-glass-blur);
+            border: 1px solid var(--ui-glass-border); border-radius: 20px; padding: 12px;
+            display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px; 
+            z-index: 1003; box-shadow: 0 20px 40px rgba(0,0,0,0.2); max-width: 320px;
+        }
+        .color-cell { width: 18px; height: 18px; border-radius: 4px; cursor: pointer; border: 1px solid rgba(0,0,0,0.1); transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+        .color-cell:hover { transform: scale(1.4); box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 2; border-color: white;}
+
+        /* --- 系統介面與落款 --- */
+        #note-base { margin-top: 60px; width: var(--note-width); text-align: center; border-top: 2px dashed var(--border-color); padding-top: 30px; padding-bottom: 50px; color: #888; font-size: 15px; position: relative; }
+        
+        /* 浮水印調整至中央尾部 */
+        #watermark { 
+            margin-top: 30px; font-size: 14px; color: var(--watermark-color); pointer-events: none; 
+            font-family: 'Comic Sans MS', cursive; font-weight: bold; letter-spacing: 1px; text-align: center;
+        }
+        
+        #export-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.3); backdrop-filter: blur(15px); z-index: 2000; display: none; align-items: center; justify-content: center; }
+        #export-modal.active { display: flex; }
+        #modal-content { background: var(--ui-glass-bg); backdrop-filter: var(--ui-glass-blur); border-radius: var(--r-corner); border: 1px solid var(--ui-glass-border); padding: 40px; width: 90%; max-width: 500px; box-shadow: 0 30px 60px rgba(0,0,0,0.3); position: relative;}
+        #close-modal { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.05); border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border: none; color: var(--text-color); font-size: 20px; cursor: pointer; transition: 0.2s;}
+        #close-modal:hover { background: rgba(255,60,48,0.1); color: #ff3b30; }
+
+        @media (max-width: 768px) {
+            #app-container { flex-direction: column; }
+            #editor-region { flex: 0 0 50%; border-right: none; border-bottom: 1px solid var(--ui-glass-border); }
+            .drag-handle { width: 40px; height: 40px; }
+            #theme-panel { width: 85%; max-width: 340px; border-radius: 0 24px 24px 0;}
+            /* 手機板模塊選單也保證在下方 */
+            #add-block-menu { grid-template-columns: repeat(3, 1fr); transform: translateX(-50%) translateY(-10px) scale(0.9); }
+            #add-block-menu.active { transform: translateX(-50%) translateY(0) scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <div id="editor-region">
+            <button id="theme-toggle-btn" onclick="toggleThemePanel(event)" title="主題與設定">⚙️</button>
+            <div id="editor-content">
+                </div>
+            
+            <div id="add-block-wrapper">
+                <button id="add-block-btn" onclick="toggleAddMenu(event)">+</button>
+                <div id="add-block-menu">
+                    <div class="menu-item" onclick="addNewBlock('text')"><span style="font-size:28px;">T</span><br>文字</div>
+                    <div class="menu-item" onclick="addNewBlock('calendar')"><span style="font-size:28px;">📅</span><br>日曆</div>
+                    <div class="menu-item" onclick="addNewBlock('image')"><span style="font-size:28px;">🖼️</span><br>圖片</div>
+                    <div class="menu-item" onclick="addNewBlock('md')"><span style="font-size:28px;">📝</span><br>Markdown</div>
+                    <div class="menu-item" onclick="addNewBlock('clock')"><span style="font-size:28px;">🕰️</span><br>時鐘</div>
+                    <div class="menu-item" onclick="addNewBlock('flashcard')"><span style="font-size:28px;">🎴</span><br>字卡</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="preview-region">
+            <div id="preview-wrapper">
+                <div id="preview-content"></div>
+                <div id="note-base">
+                    <div id="sig-line1-preview"></div>
+                    <div id="sig-line2-preview" style="font-weight: bold; margin-top:4px;"></div>
+                    <div id="sig-line3-preview" style="font-size: 0.9em; margin-top:8px; opacity: 0.7;"></div>
+                    <div id="watermark">Made with Mimi's Notebook Maker</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="theme-panel">
+        <h3 style="margin-top:0; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">面板設定</h3>
+        
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span>🌙 夜間模式</span>
+            <input type="checkbox" id="darkmode-switch" onchange="toggleDarkMode()" style="width:20px; height:20px;">
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center;" title="勾選：成品套用 Liquid Glass / 取消：實體顏色">
+            <span>🪟 成品毛玻璃特效</span>
+            <input type="checkbox" id="glass-switch" checked onchange="toggleNoteGlassEffect()" style="width:20px; height:20px;">
+        </div>
+        
+        <div>
+            <label>筆記寬度：<span id="width-value">80</span>%</label>
+            <input type="range" id="width-slider" min="50" max="100" value="80" style="width:100%; margin-top:10px;" oninput="updateNoteWidth(this.value)">
+        </div>
+
+        <div>
+            <label style="display:block; margin-bottom:12px; font-size: 14px;">🎨 主色調 (強調色)</label>
+            <div id="primary-color-picker" style="display:grid; grid-template-columns: repeat(8, 1fr); gap:8px;"></div>
+        </div>
+
+        <div>
+            <label style="font-size: 14px; display:block; margin-bottom:10px;">背景底色 (即時渲染)：</label>
+            <input type="color" id="bgcolor-picker" value="#f0f2f5" style="border:none; background:transparent; cursor:pointer; width:100%; height:40px; border-radius:12px;" oninput="updateBgColor(this.value)" onchange="updateBgColor(this.value)">
+        </div>
+
+        <div style="border-top:1px solid var(--border-color); padding-top:20px; margin-top:10px;">
+            <h4 style="margin-top:0; margin-bottom:15px;">✍️ 落款設定</h4>
+            <input type="text" id="sig-line1" placeholder="第一行 (如: Mimi's Collection)" class="block-input" style="border:1px solid var(--ui-glass-border); background:rgba(255,255,255,0.2); border-radius:12px; padding:12px; margin-bottom:10px;" oninput="updateSignature()">
+            <input type="text" id="sig-line2" placeholder="第二行 (如: Geometry Study)" class="block-input" style="border:1px solid var(--ui-glass-border); background:rgba(255,255,255,0.2); border-radius:12px; padding:12px; margin-bottom:10px;" oninput="updateSignature()">
+            <select id="sig-date-format" class="block-input" style="border:1px solid var(--ui-glass-border); background:rgba(255,255,255,0.2); border-radius:12px; padding:12px;" onchange="updateSignature()">
+                <option value="YMD" style="color:black;">年/月/日 (如 2026/04/02)</option>
+                <option value="YM" style="color:black;">年/月 (如 April 2026)</option>
+                <option value="Year" style="color:black;">僅年份 (如 2026)</option>
+                <option value="MD" style="color:black;">僅月日 (如 April 2nd)</option>
+                <option value="None" style="color:black;">無日期</option>
+            </select>
+        </div>
+
+        <div style="margin-top:auto; padding-top:30px; text-align:center;">
+            <button onclick="exportNotebookHTML()" style="width:100%; padding:15px; background-color:var(--primary-color); color:white; border:none; border-radius:16px; cursor:pointer; font-weight:bold; font-size:16px; box-shadow: 0 8px 20px rgba(0,0,0,0.15); transition: 0.2s;">
+                📥 匯出成純閱讀 HTML
+            </button>
+            <div id="export-size-info" style="font-size:12px; color:#888; margin-top:12px;">預估檔案大小: 0 KB</div>
+        </div>
+    </div>
+
+    <div id="inline-toolbar">
+        <select id="text-style-select" onchange="applyTextStyle(this.value)" class="toolbar-btn">
+            <option value="p">內文</option>
+            <option value="h1">大標</option>
+            <option value="h2">副標</option>
+            <option value="h3">小標</option>
+        </select>
+        <div style="width:1px; height:24px; background:var(--ui-glass-border); margin:0 4px;"></div>
+        <button class="toolbar-btn" onclick="applyInlineStyle('bold')" title="粗體"><b>B</b></button>
+        <button class="toolbar-btn" onclick="applyInlineStyle('italic')" title="斜體" style="font-style: italic; font-family: serif;">I</button>
+        <button class="toolbar-btn" onclick="applyInlineStyle('strikethrough')" title="刪除線"><s>S</s></button>
+        <button class="toolbar-btn" onclick="applyInlineStyle('superscript')" title="上標">X²</button>
+        <button class="toolbar-btn" onclick="applyInlineStyle('subscript')" title="下標">X₂</button>
+        <div style="width:1px; height:24px; background:var(--ui-glass-border); margin:0 4px;"></div>
+        <button class="toolbar-btn" id="highlight-btn" onclick="toggleColorPicker('highlight', event)" title="螢光筆">🖍️</button>
+        <button class="toolbar-btn" id="textcolor-btn" onclick="toggleColorPicker('textcolor', event)" title="字體顏色">A</button>
+        <button class="toolbar-btn" onclick="applySpoiler()" title="Threads劇透特效">🌫️</button>
+        <button class="toolbar-btn" onclick="insertLink()" title="插入連結">🔗</button>
+    </div>
+
+    <div id="export-modal">
+        <div id="modal-content">
+            <button id="close-modal" onclick="closeModal()">✕</button>
+            <h2 style="margin-top:0; color:var(--primary-color);">🎉 檔案已備妥</h2>
+            <p style="font-size: 16px; line-height: 1.6;">純淨版的筆記檔案已下載，請查看你的下載資料夾。</p>
+            <div style="background: rgba(0,0,0,0.03); padding:20px; border-radius:16px; margin-top:20px; border: 1px solid var(--border-color);">
+                <h4 style="margin-top:0;">🚀 部署到 GitHub Pages</h4>
+                <ol style="padding-left:20px; font-size:15px; line-height:1.8; margin-bottom:0;">
+                    <li>前往 GitHub 建立新 Repository。</li>
+                    <li>將下載的檔案重新命名為 <code>index.html</code>。</li>
+                    <li>上傳至 Repository。</li>
+                    <li>進入 Settings -> Pages，將 Source 設為 main 並保存。</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let blocks = []; 
+        let currentSelection = null; 
+        let clockTimer = null;
+        let themePanelTimer = null;
+        
+        // 基礎 16 色 (用於主色調選擇)
+        const baseColors = ["#007aff", "#5856d6", "#ff2d55", "#ff3b30", "#ff9500", "#ffcc00", "#34c759", "#5ac8fa", "#0040ff", "#4c48c4", "#e6003e", "#e60000", "#e67300", "#e6b800", "#00a331", "#1f1f1f"];
+
+        // 動態生成 144 色 (Apple 光譜: 12x12)
+        function generateApple144Colors() {
+            const colors = [];
+            for(let i=0; i<12; i++) colors.push(`hsl(0, 0%, ${100 - i*(100/11)}%)`); // 灰階
+            for(let r=0; r<11; r++) { // 漸變彩色
+                let l = 20 + r * 6; 
+                for(let c=0; c<12; c++) {
+                    let h = c * 30; 
+                    colors.push(`hsl(${h}, 100%, ${l}%)`);
+                }
+            }
+            return colors;
+        }
+        const apple144Colors = generateApple144Colors();
+
+        const renderer = new marked.Renderer();
+        renderer.link = (href, title, text) => `<a href="${href}" title="${title || ''}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+        marked.setOptions({ renderer: renderer });
+
+        window.onload = () => {
+            initColorPickers();
+            setupGlobalClickListeners();
+            setupThemePanelHover();
+            loadLocalStorage();
+            toggleNoteGlassEffect(); 
+            renderPreview();
+            updateExportSize();
+            autoSaveListener();
+            startClockTimer();
+        };
+
+        /* 主題選單：滑鼠離開 1.5 秒自動收合 */
+        function setupThemePanelHover() {
+            const panel = document.getElementById('theme-panel');
+            panel.addEventListener('mouseleave', () => {
+                themePanelTimer = setTimeout(() => {
+                    panel.classList.remove('active');
+                }, 1500);
+            });
+            panel.addEventListener('mouseenter', () => {
+                if (themePanelTimer) clearTimeout(themePanelTimer);
+            });
+        }
+
+        /* 全域點擊監聽 (包含劇透解鎖、旁側收合) */
+        function setupGlobalClickListeners() {
+            document.addEventListener('click', (e) => {
+                // 1. 劇透點擊
+                if (e.target.classList.contains('spoiler-text')) {
+                    e.target.classList.toggle('revealed');
+                }
+                
+                // 2. 點擊旁側收合 Theme Panel (支援各裝置)
+                const panel = document.getElementById('theme-panel');
+                const btn = document.getElementById('theme-toggle-btn');
+                if (panel.classList.contains('active')) {
+                    if (!panel.contains(e.target) && !btn.contains(e.target)) {
+                        panel.classList.remove('active');
+                    }
+                }
+
+                // 收合模塊選單
+                const addMenu = document.getElementById('add-block-menu');
+                const addBtn = document.getElementById('add-block-btn');
+                if (addMenu.classList.contains('active') && !addMenu.contains(e.target) && !addBtn.contains(e.target)) {
+                    addMenu.classList.remove('active');
+                }
+
+                // 點擊空白處關閉浮動文字工具列與顏色選單
+                const toolbar = document.getElementById('inline-toolbar');
+                if (!toolbar.contains(e.target) && !e.target.closest('.text-block') && !e.target.closest('.toolbar-btn')) {
+                    toolbar.classList.remove('active');
+                    closeColorPicker();
+                }
+            });
+        }
+
+        function initColorPickers() {
+            const primaryPicker = document.getElementById('primary-color-picker');
+            baseColors.forEach(color => {
+                const cell = document.createElement('div');
+                cell.className = 'color-cell';
+                cell.style.backgroundColor = color;
+                cell.onclick = () => updatePrimaryColor(color);
+                primaryPicker.appendChild(cell);
+            });
+            document.documentElement.style.setProperty('--primary-color', baseColors[0]);
+        }
+
+        function toggleThemePanel(e) { 
+            if(e) e.stopPropagation();
+            document.getElementById('theme-panel').classList.toggle('active'); 
+        }
+
+        function toggleAddMenu(e) {
+            if(e) e.stopPropagation();
+            const menu = document.getElementById('add-block-menu');
+            menu.classList.toggle('active');
+            
+            if (menu.classList.contains('active')) {
+                const rect = menu.getBoundingClientRect();
+                if (rect.bottom > window.innerHeight) {
+                    menu.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                }
+            }
+        }
+
+        function addNewBlock(type) {
+            const id = Date.now().toString();
+            let newBlock = { id: id, type: type, content: "" };
+            if (type === 'calendar') newBlock.data = { markedDates: [], year: new Date().getFullYear(), month: new Date().getMonth() };
+            if (type === 'clock') newBlock.data = { clockType: 'digital' };
+            if (type === 'flashcard') newBlock.data = { front: "", back: "" };
+            
+            blocks.push(newBlock);
+            createEditorBlock(newBlock);
+            renderPreview();
+            document.getElementById('add-block-menu').classList.remove('active');
+        }
+
+        /* 完整還原並補足原先切斷的 Block 創建邏輯 */
+        function createEditorBlock(block) {
+            const container = document.getElementById('editor-content');
+            const div = document.createElement('div');
+            div.className = 'editor-block';
+            div.id = `block-container-${block.id}`;
+            div.dataset.id = block.id;
+
+            div.innerHTML = `
+                <div class="block-actions">
+                    <div class="drag-handle" draggable="true">⋮⋮</div>
+                    <button class="delete-btn" onclick="deleteBlock('${block.id}')">✕</button>
+                </div>
+            `;
+
+            let inputElement;
+            if (block.type === 'text') {
+                inputElement = document.createElement('div');
+                inputElement.className = 'block-input text-block';
+                inputElement.contentEditable = "true";
+                inputElement.id = `block-input-${block.id}`;
+                inputElement.innerHTML = block.content;
+                inputElement.addEventListener('input', () => syncContent(block.id));
+                inputElement.addEventListener('mouseup', handleTextSelection);
+                inputElement.addEventListener('keyup', handleTextSelection);
+            } else if (block.type === 'image') {
+                inputElement = document.createElement('input');
+                inputElement.type = 'text';
+                inputElement.placeholder = '貼上圖片 URL...';
+                inputElement.className = 'block-input';
+                inputElement.id = `block-input-${block.id}`;
+                inputElement.value = block.content;
+                inputElement.addEventListener('input', () => syncContent(block.id));
+            } else if (block.type === 'md') {
+                inputElement = document.createElement('textarea');
+                inputElement.placeholder = '支援 Markdown 語法...';
+                inputElement.className = 'block-input';
+                inputElement.id = `block-input-${block.id}`;
+                inputElement.value = block.content;
+                inputElement.rows = 4;
+                inputElement.addEventListener('input', function() {
+                    this.style.height = 'auto';
+                    this.style.height = (this.scrollHeight) + 'px';
+                    syncContent(block.id);
+                });
+            } else if (block.type === 'calendar') {
+                inputElement = document.createElement('div');
+                inputElement.innerHTML = `<span style="color:#888;">📅 日曆模塊：請直接在預覽區點擊日期標記</span>`;
+            } else if (block.type === 'clock') {
+                inputElement = document.createElement('select');
+                inputElement.className = 'block-input';
+                inputElement.style.border = '1px solid var(--border-color)';
+                inputElement.style.padding = '8px';
+                inputElement.style.borderRadius = '8px';
+                inputElement.innerHTML = `
+                    <option value="digital" ${block.data.clockType === 'digital' ? 'selected' : ''}>數字時鐘</option>
+                    <option value="flip" ${block.data.clockType === 'flip' ? 'selected' : ''}>翻頁時鐘</option>
+                `;
+                inputElement.addEventListener('change', (e) => {
+                    block.data.clockType = e.target.value;
+                    renderPreview();
+                });
+            } else if (block.type === 'flashcard') {
+                inputElement = document.createElement('div');
+                inputElement.className = 'editor-flashcard-inputs';
+                inputElement.innerHTML = `
+                    <input type="text" class="block-input" placeholder="字卡正面內容 (例如: Apple)" value="${block.data.front}" style="border: 1px solid var(--border-color); padding: 12px; border-radius: 12px;" oninput="updateFlashcard('${block.id}', 'front', this.value)">
+                    <input type="text" class="block-input" placeholder="字卡背面內容 (例如: 蘋果)" value="${block.data.back}" style="border: 1px solid var(--border-color); padding: 12px; border-radius: 12px;" oninput="updateFlashcard('${block.id}', 'back', this.value)">
+                `;
+            }
+            
+            div.appendChild(inputElement);
+            container.appendChild(div);
+        }
+
+        function updateFlashcard(id, side, value) {
+            const block = blocks.find(b => b.id === id);
+            if(block) { block.data[side] = value; renderPreview(); }
+        }
+
+        function syncContent(id) {
+            const block = blocks.find(b => b.id === id);
+            if (!block) return;
+            const el = document.getElementById(`block-input-${id}`);
+            if (block.type === 'text') block.content = el.innerHTML;
+            else block.content = el.value;
+            renderPreview();
+        }
+
+        function deleteBlock(id) {
+            blocks = blocks.filter(b => b.id !== id);
+            document.getElementById(`block-container-${id}`).remove();
+            renderPreview();
+        }
+
+        /* 渲染預覽區 */
+        function renderPreview() {
+            const container = document.getElementById('preview-content');
+            container.innerHTML = '';
+            
+            blocks.forEach(block => {
+                const div = document.createElement('div');
+                div.className = 'preview-block';
+                if(block.type === 'flashcard') div.classList.add('flashcard-block');
+                
+                if (block.type === 'text') {
+                    div.innerHTML = block.content;
+                } else if (block.type === 'image') {
+                    if (block.content) div.innerHTML = `<div class="image-container"><img src="${block.content}" class="preview-img"></div>`;
+                    else div.innerHTML = `<div style="text-align:center; color:#aaa;">尚未設定圖片</div>`;
+                } else if (block.type === 'md') {
+                    div.innerHTML = `<div class="md-table-wrapper">${marked.parse(block.content || '*尚未輸入內容*')}</div>`;
+                } else if (block.type === 'calendar') {
+                    div.innerHTML = generateCalendarHTML(block);
+                } else if (block.type === 'clock') {
+                    div.innerHTML = generateClockHTML(block);
+                } else if (block.type === 'flashcard') {
+                    div.innerHTML = `
+                        <div class="flashcard-container" onclick="this.classList.toggle('flipped')">
+                            <div class="flashcard-inner">
+                                <div class="flashcard-front">${block.data.front || '請輸入正面'}</div>
+                                <div class="flashcard-back">${block.data.back || '請輸入背面'}</div>
+                            </div>
+                        </div>
+                    `;
+                }
+                container.appendChild(div);
+            });
+            updateExportSize();
+        }
+
+        /* 日曆模塊邏輯 */
+        function generateCalendarHTML(block) {
+            const year = block.data.year;
+            const month = block.data.month;
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const firstDayIndex = new Date(year, month, 1).getDay();
+            const today = new Date();
+            const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
+
+            let html = `<div class="calendar-container">
+                <div class="calendar-header">
+                    <button onclick="changeMonth('${block.id}', -1)" style="border:none;background:transparent;cursor:pointer;font-size:16px;">◀</button>
+                    <span>${year}年 ${month + 1}月</span>
+                    <button onclick="changeMonth('${block.id}', 1)" style="border:none;background:transparent;cursor:pointer;font-size:16px;">▶</button>
+                </div>
+                <div class="calendar-grid">
+                    <div class="calendar-day-label">日</div><div class="calendar-day-label">一</div>
+                    <div class="calendar-day-label">二</div><div class="calendar-day-label">三</div>
+                    <div class="calendar-day-label">四</div><div class="calendar-day-label">五</div>
+                    <div class="calendar-day-label">六</div>`;
+
+            for (let i = 0; i < firstDayIndex; i++) html += `<div class="calendar-date empty"></div>`;
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dateString = `${year}-${month + 1}-${i}`;
+                const isMarked = block.data.markedDates.includes(dateString);
+                const isToday = isCurrentMonth && i === today.getDate();
+                html += `<div class="calendar-date ${isMarked ? 'marked' : ''} ${isToday ? 'today' : ''}" onclick="toggleDateMark('${block.id}', '${dateString}')">${i}</div>`;
+            }
+            html += `</div></div>`;
+            return html;
+        }
+
+        function changeMonth(id, diff) {
+            const block = blocks.find(b => b.id === id);
+            block.data.month += diff;
+            if (block.data.month < 0) { block.data.month = 11; block.data.year--; }
+            if (block.data.month > 11) { block.data.month = 0; block.data.year++; }
+            renderPreview();
+        }
+
+        function toggleDateMark(id, dateString) {
+            const block = blocks.find(b => b.id === id);
+            const index = block.data.markedDates.indexOf(dateString);
+            if (index > -1) block.data.markedDates.splice(index, 1);
+            else block.data.markedDates.push(dateString);
+            renderPreview();
+        }
+
+        /* 時鐘模塊邏輯 */
+        function generateClockHTML(block) {
+            const now = new Date();
+            let html = `<div class="clock-wrapper">`;
+            if (block.data.clockType === 'digital') {
+                const timeStr = now.toLocaleTimeString('en-US', { hour12: false });
+                html += `<div class="clock-digital">${timeStr}</div>`;
+            } else if (block.data.clockType === 'flip') {
+                const h = String(now.getHours()).padStart(2, '0');
+                const m = String(now.getMinutes()).padStart(2, '0');
+                const s = String(now.getSeconds()).padStart(2, '0');
+                html += `
+                    <div class="clock-flip">
+                        <div class="flip-card" id="flip-h-${block.id}">${h}</div>
+                        <div style="font-size:2rem; font-weight:bold; padding:10px 0;">:</div>
+                        <div class="flip-card" id="flip-m-${block.id}">${m}</div>
+                        <div style="font-size:2rem; font-weight:bold; padding:10px 0;">:</div>
+                        <div class="flip-card" id="flip-s-${block.id}">${s}</div>
+                    </div>`;
+            }
+            html += `</div>`;
+            return html;
+        }
+
+        function startClockTimer() {
+            if (clockTimer) clearInterval(clockTimer);
+            clockTimer = setInterval(() => {
+                blocks.forEach(block => {
+                    if (block.type === 'clock') {
+                        if (block.data.clockType === 'flip') updateFlipClockDOM(block.id);
+                        else renderPreview(); // 簡單起見，數字鐘直接重繪
+                    }
+                });
+            }, 1000);
+        }
+
+        function updateFlipClockDOM(id) {
+            const now = new Date();
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+            
+            const updateCard = (elId, val) => {
+                const el = document.getElementById(elId);
+                if(el && el.innerText !== val) {
+                    el.classList.remove('flipping');
+                    void el.offsetWidth; // 觸發重繪
+                    el.innerText = val;
+                    el.classList.add('flipping');
+                }
+            };
+            updateCard(`flip-h-${id}`, h);
+            updateCard(`flip-m-${id}`, m);
+            updateCard(`flip-s-${id}`, s);
+        }
+
+        /* 文字工具列與顏色 */
+        function handleTextSelection() {
+            const selection = window.getSelection();
+            const toolbar = document.getElementById('inline-toolbar');
+            if (selection.toString().length > 0 && selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                const rect = range.getBoundingClientRect();
+                toolbar.style.left = `${rect.left + (rect.width / 2) - (toolbar.offsetWidth / 2)}px`;
+                toolbar.style.top = `${rect.top - toolbar.offsetHeight - 10 + window.scrollY}px`;
+                toolbar.classList.add('active');
+            } else {
+                toolbar.classList.remove('active');
+                closeColorPicker();
+            }
+        }
+
+        function applyInlineStyle(command) { document.execCommand(command, false, null); }
+        function applyTextStyle(tag) { document.execCommand('formatBlock', false, tag); }
+        function insertLink() {
+            const url = prompt('請輸入連結網址:');
+            if (url) document.execCommand('createLink', false, url);
+        }
+        function applySpoiler() {
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return;
+            const span = document.createElement('span');
+            span.className = 'spoiler-text';
+            span.textContent = selection.toString();
+            const range = selection.getRangeAt(0);
+            range.deleteContents();
+            range.insertNode(span);
+        }
+
+        function toggleColorPicker(mode, event) {
+            event.stopPropagation();
+            closeColorPicker();
+            const popup = document.createElement('div');
+            popup.className = 'color-picker-popup';
+            popup.id = 'active-color-picker';
+            
+            // 替換為 144 色
+            apple144Colors.forEach(color => {
+                const cell = document.createElement('div');
+                cell.className = 'color-cell';
+                cell.style.backgroundColor = color;
+                cell.onmousedown = (e) => {
+                    e.preventDefault(); 
+                    if (mode === 'textcolor') document.execCommand('foreColor', false, color);
+                    else if (mode === 'highlight') document.execCommand('hiliteColor', false, color);
+                    closeColorPicker();
+                };
+                popup.appendChild(cell);
+            });
+
+            const btnRect = event.target.getBoundingClientRect();
+            popup.style.left = `${btnRect.left}px`;
+            popup.style.top = `${btnRect.bottom + window.scrollY + 10}px`;
+            document.body.appendChild(popup);
+        }
+        function closeColorPicker() { const p = document.getElementById('active-color-picker'); if(p) p.remove(); }
+
+        /* 設定變更與儲存 */
+        function toggleDarkMode() { document.body.classList.toggle('dark-mode'); renderPreview(); }
+        function toggleNoteGlassEffect() {
+            const checked = document.getElementById('glass-switch').checked;
+            document.documentElement.style.setProperty('--note-glass-opacity', checked ? '1' : '0');
+            document.documentElement.style.setProperty('--block-bg', checked ? 'rgba(255, 255, 255, 0.7)' : 'rgba(255, 255, 255, 1)');
+            if(document.body.classList.contains('dark-mode')){
+                document.documentElement.style.setProperty('--block-bg', checked ? 'rgba(40, 40, 40, 0.7)' : 'rgba(40, 40, 40, 1)');
+            }
+        }
+        function updateNoteWidth(val) { document.documentElement.style.setProperty('--note-width', val + '%'); document.getElementById('width-value').innerText = val; }
+        function updatePrimaryColor(c) { document.documentElement.style.setProperty('--primary-color', c); }
+        function updateBgColor(c) { document.documentElement.style.setProperty('--bg-color', c); }
+        
+        function updateSignature() {
+            const line1 = document.getElementById('sig-line1').value;
+            const line2 = document.getElementById('sig-line2').value;
+            const format = document.getElementById('sig-date-format').value;
+            
+            document.getElementById('sig-line1-preview').innerText = line1;
+            document.getElementById('sig-line2-preview').innerText = line2;
+            
+            const dateStr = getFormattedDate(format);
+            document.getElementById('sig-line3-preview').innerText = dateStr;
+            updateExportSize();
+        }
+
+        function getFormattedDate(format) {
+            const d = new Date();
+            const y = d.getFullYear(); const m = d.getMonth() + 1; const day = d.getDate();
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            if (format === 'YMD') return `${y}/${m.toString().padStart(2,'0')}/${day.toString().padStart(2,'0')}`;
+            if (format === 'YM') return `${monthNames[m-1]} ${y}`;
+            if (format === 'Year') return `${y}`;
+            if (format === 'MD') return `${monthNames[m-1]} ${day}${getOrdinalSuffix(day)}`;
+            return '';
+        }
+        function getOrdinalSuffix(i) {
+            const j = i % 10, k = i % 100;
+            if (j == 1 && k != 11) return "st";
+            if (j == 2 && k != 12) return "nd";
+            if (j == 3 && k != 13) return "rd";
+            return "th";
+        }
+
+        /* 檔案大小精準預測與匯出 */
+        function generateExportHTML() {
+            const contentHTML = document.getElementById('preview-wrapper').outerHTML;
+            const styles = document.querySelector('style').innerText;
+            const bodyClass = document.body.className;
+            const rootVars = document.documentElement.style.cssText;
+            
+            return `<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notebook</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>${styles}</style>
+</head>
+<body class="${bodyClass}" style="${rootVars}; overflow:auto; display:flex; justify-content:center;">
+    ${contentHTML}
+    <script>
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('spoiler-text')) e.target.classList.toggle('revealed');
+        });
+        setInterval(() => {
+            const now = new Date();
+            const elsH = document.querySelectorAll('[id^="flip-h-"]');
+            elsH.forEach(el => { el.innerText = String(now.getHours()).padStart(2, '0'); });
+            const elsM = document.querySelectorAll('[id^="flip-m-"]');
+            elsM.forEach(el => { el.innerText = String(now.getMinutes()).padStart(2, '0'); });
+            const elsS = document.querySelectorAll('[id^="flip-s-"]');
+            elsS.forEach(el => { 
+                if(el.innerText !== String(now.getSeconds()).padStart(2, '0')){
+                    el.classList.remove('flipping');
+                    void el.offsetWidth;
+                    el.innerText = String(now.getSeconds()).padStart(2, '0');
+                    el.classList.add('flipping');
+                }
+            });
+        }, 1000);
+    <\/script>
+</body>
+</html>`;
+        }
+
+        function updateExportSize() {
+            const htmlStr = generateExportHTML();
+            const blob = new Blob([htmlStr], { type: 'text/html' });
+            const kb = (blob.size / 1024).toFixed(1);
+            document.getElementById('export-size-info').innerText = `精準預估大小: ${kb} KB`;
+        }
+
+        function exportNotebookHTML() {
+            const htmlStr = generateExportHTML();
+            const blob = new Blob([htmlStr], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Note_${new Date().getTime()}.html`;
+            a.click();
+            URL.revokeObjectURL(url);
+            document.getElementById('export-modal').classList.add('active');
+        }
+
+        function closeModal() { document.getElementById('export-modal').classList.remove('active'); }
+
+        function autoSaveListener() {
+            setInterval(() => {
+                localStorage.setItem('notebook_blocks', JSON.stringify(blocks));
+                localStorage.setItem('notebook_sig1', document.getElementById('sig-line1').value);
+                localStorage.setItem('notebook_sig2', document.getElementById('sig-line2').value);
+            }, 3000);
+        }
+
+        function loadLocalStorage() {
+            const saved = localStorage.getItem('notebook_blocks');
+            if (saved) {
+                blocks = JSON.parse(saved);
+                blocks.forEach(b => createEditorBlock(b));
+            } else {
+                addNewBlock('text'); // 預設新增一個文字塊
+            }
+            document.getElementById('sig-line1').value = localStorage.getItem('notebook_sig1') || '';
+            document.getElementById('sig-line2').value = localStorage.getItem('notebook_sig2') || '';
+            updateSignature();
+        }
+    </script>
+</body>
+</html>
