@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>植物分類本質探究：木本與草本的微觀解析</title>
+    <style>
+        :root {
+            /* 淺綠色為主 (Primary Green) */
+            --bg-gradient-start: #e8f0e3;
+            --bg-gradient-end: #d0e0c8;
+            --primary-color: #557a46;
+            --secondary-color: #7b996c;
+            
+            /* 淺咖啡/大地色系為輔 (Earth Brown) */
+            --earth-light: #d4c4b7;
+            --earth-dark: #8c705a;
+            --earth-accent: #a68a73;
+            
+            /* Liquid Glass 參數 */
+            --glass-bg: rgba(255, 255, 255, 0.55);
+            --glass-border: rgba(255, 255, 255, 0.4);
+            --glass-shadow: rgba(85, 122, 70, 0.15);
+            
+            --text-main: #2c3e20;
+            --text-muted: #5a6652;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            background-attachment: fixed;
+            color: var(--text-main);
+            line-height: 1.7;
+            display: flex;
+            justify-content: center;
+            padding: 40px 20px;
+        }
+
+        .notebook-container {
+            max-width: 950px;
+            width: 100%;
+        }
+
+        /* Liquid Glass Main Panel */
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 28px;
+            box-shadow: 0 12px 40px var(--glass-shadow);
+            padding: 50px;
+            margin-bottom: 40px;
+        }
+
+        /* Typography */
+        h1 {
+            color: var(--primary-color);
+            font-size: 2.6rem;
+            text-align: center;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--earth-dark);
+            font-weight: 500;
+            margin-bottom: 40px;
+            font-size: 1.1rem;
+        }
+
+        h2 {
+            display: flex;
+            align-items: center;
+            color: var(--earth-dark);
+            font-size: 1.8rem;
+            margin-top: 45px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--earth-light);
+        }
+
+        h2::before {
+            content: "🌿";
+            margin-right: 12px;
+            font-size: 1.5rem;
+        }
+
+        h3 {
+            color: var(--primary-color);
+            font-size: 1.3rem;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            padding-left: 14px;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        p {
+            margin-bottom: 16px;
+            font-size: 1.05rem;
+        }
+
+        /* Highlight Boxes */
+        .info-box {
+            background: rgba(212, 196, 183, 0.25);
+            border-left: 5px solid var(--earth-dark);
+            padding: 20px;
+            border-radius: 0 12px 12px 0;
+            margin: 25px 0;
+        }
+
+        .info-box strong {
+            color: var(--earth-dark);
+        }
+
+        /* Image Styling */
+        .img-container {
+            text-align: center;
+            margin: 30px 0;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 16px;
+            border: 1px dashed var(--secondary-color);
+        }
+
+        .img-placeholder {
+            display: block;
+            width: 100%;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            margin-bottom: 10px;
+        }
+
+        .img-caption {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        /* List Styling */
+        ul {
+            list-style-type: none;
+            padding-left: 20px;
+            margin-bottom: 20px;
+        }
+
+        ul li {
+            margin-bottom: 10px;
+            position: relative;
+            padding-left: 25px;
+        }
+
+        ul li::before {
+            content: "✦";
+            color: var(--earth-accent);
+            position: absolute;
+            left: 0;
+            font-size: 1.2rem;
+            line-height: 1;
+        }
+
+        /* Table Styling */
+        .table-wrapper {
+            overflow-x: auto;
+            margin: 30px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            background: rgba(255,255,255,0.4);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        th {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 16px;
+            text-align: left;
+            font-weight: 500;
+        }
+
+        td {
+            padding: 16px;
+            border-bottom: 1px solid rgba(85, 122, 70, 0.1);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background-color: rgba(255,255,255,0.6);
+        }
+
+        /* Tags */
+        .tag {
+            display: inline-block;
+            background: var(--earth-light);
+            color: var(--text-main);
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+
+        /* References Box */
+        .ref-box {
+            background: rgba(255,255,255,0.3);
+            font-size: 0.9rem;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 40px;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        /* Footer matching previous geometry note style */
+        .footer {
+            text-align: center;
+            padding-top: 20px;
+            margin-top: 40px;
+            border-top: 2px dashed var(--earth-light);
+            color: var(--earth-dark);
+            font-size: 0.95rem;
+            letter-spacing: 1px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .footer .author {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        @media (max-width: 768px) {
+            .glass-panel { padding: 30px 20px; }
+            h1 { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="notebook-container">
+    <div class="glass-panel">
+        <h1>植物分類本質探究</h1>
+        <div class="subtitle">解構草本與木本的微觀科學依據：從維管束到演化特例</div>
+
+        <p>在日常觀察中，我們常以「是否具有堅硬的樹幹」來粗略二分草本（Herbaceous）與木本（Woody）植物。然而，植物學上的分類標準並非僅依賴外觀或觸感，而是建立在<strong>細胞層級的生理構造</strong>與<strong>發育機制</strong>上。本筆記將深度剖析這兩者的核心差異，並破解自然界中的分類迷思。</p>
+
+        <h2>一、 判定的絕對核心：形成層與次生生長</h2>
+        <p>區分草本與木本的終極科學標準，在於植物莖部是否具有活躍的<strong>形成層（Cambium）</strong>，以及其是否能進行持續的<strong>次生生長（Secondary Growth）</strong>。</p>
+
+        <div class="img-container">
+            
+            <div class="img-caption">圖 1：木本植物莖部橫切面示意圖。可見發達的維管束形成層（Vascular Cambium），向內不斷分裂出次生木質部（木材），向外分裂出次生韌皮部。</div>
+        </div>
+
+        <h3>1. 木本植物的生理機制</h3>
+        <ul>
+            <li><strong>形成層的活性：</strong> 擁有呈環狀相連且持續活躍的形成層。</li>
+            <li><strong>木質化的累積：</strong> 形成層向內分裂產生的「次生木質部」細胞壁中，會沉積大量的<strong>木質素（Lignin）</strong>。這種極為堅硬的有機聚合物，提供了強大的機械支撐力。</li>
+            <li><strong>年輪的形成：</strong> 由於季節氣候變化，次生生長的速度不同，進而在木材切面上留下深淺交替的同心圓紋路（年輪）。</li>
+        </ul>
+
+        <h3>2. 草本植物的生理機制</h3>
+        <ul>
+            <li><strong>缺乏次生構造：</strong> 維管束通常呈散生排列（如單子葉）或雖呈環狀但不具備活躍的形成層（如多數雙子葉草本），因此無法無限增粗。</li>
+            <li><strong>支撐力來源：</strong> 莖部質地柔軟，主要依靠細胞內液體對細胞壁施加的<strong>膨壓（Turgor Pressure）</strong>來維持直立。一旦缺水，草本植物會迅速表現出萎蔫現象。</li>
+        </ul>
+
+        <div class="img-container">
+            
+            <div class="img-caption">圖 2：單子葉草本植物莖部橫切面。維管束散佈於基本組織中，不具有形成層，無法進行次生生長。</div>
+        </div>
+
+        <h2>二、 各大植物門的分類盤點與「特例」破壞者</h2>
+
+        <div class="info-box">
+            <strong>📝 生物學界的分類陷阱：</strong><br>
+            「堅硬＝木本」是一個嚴重的迷思。自然界中有許多因演化壓力而具備「木本型態」的草本植物，或是缺乏真正木質部卻高大無比的特例。
+        </div>
+
+        <h3>1. 被子植物 (Angiosperms)</h3>
+        <p>被子植物的分類最為複雜，依據子葉數量可分為兩大類：</p>
+        <ul>
+            <li><span class="tag">雙子葉</span> <strong>既有木本也有草本：</strong> 這是最大的群體。榕樹、樟樹為典型木本；而青江菜、向日葵則是因其形成層活性極低，木質化程度微弱而被歸類為草本。</li>
+            <li><span class="tag">單子葉</span> <strong>絕大多數為草本，但擁有著名的「偽裝者」：</strong>
+                <br><strong>▶ 竹子 (Bamboo)：</strong> 屬於禾本科。莖部異常堅硬且富含矽質與木質素，壽命長達數十年。但剖開其莖部，內部中空，維管束散生且<strong>完全沒有形成層</strong>，不會逐年變粗。因此在分類學上是徹頭徹尾的「草本植物」。
+                <br><strong>▶ 棕櫚樹 / 椰子樹：</strong> 同樣無形成層。它們透過特殊的「初生增粗生長（Primary Thickening Meristem）」讓莖部變粗，並高度木質化。生物學上稱為「木本型草本」。
+            </li>
+        </ul>
+
+        <h3>2. 裸子植物 (Gymnosperms)</h3>
+        <ul>
+            <li><span class="tag">全為木本</span> 包含松、杉、柏、銀杏。它們演化出極度發達的次生木質部（主要由管胞組成），支撐著地球上最高大、最長壽的樹木群。</li>
+        </ul>
+
+        <h3>3. 蕨類植物 (Pteridophytes)</h3>
+        <ul>
+            <li><span class="tag">多為草本</span> 具備維管束，但不具備真正的種子與發達的根系。</li>
+            <li><strong>▶ 樹蕨特例：</strong> 如台灣常見的<strong>筆筒樹（桫欏）</strong>。外觀像樹，可長至十公尺高。但其主幹並非木材，而是由「薄壁細胞」、「堅硬的厚壁組織」以及外部層層包覆的「氣生根（不定根）」交織支撐而成，缺乏真正的次生木質部。</li>
+        </ul>
+
+        <h2>三、 系統分類總結對照表</h2>
+        
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>植物類群</th>
+                        <th>是否具備形成層</th>
+                        <th>草/木本判定</th>
+                        <th>代表物種與特例備註</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>裸子植物</strong></td>
+                        <td>✅ 發達</td>
+                        <td>全部皆為木本</td>
+                        <td>松樹、神木（管胞結構發達）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>雙子葉植物</strong></td>
+                        <td>✅ 具備</td>
+                        <td>包含草本與木本</td>
+                        <td>木本：櫻花；草本：白菜（活性低）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>單子葉植物</strong></td>
+                        <td>❌ 無</td>
+                        <td>絕大多數草本</td>
+                        <td>特例：竹子、椰子（木本型外觀，實為草本）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>蕨類植物</strong></td>
+                        <td>❌ 無</td>
+                        <td>大多數草本</td>
+                        <td>特例：筆筒樹（靠氣生根與厚壁組織支撐）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>苔蘚/藻類</strong></td>
+                        <td>❌ 無維管束</td>
+                        <td>皆為草本 / 不適用</td>
+                        <td>巨型海帶長達數十米，但無根莖葉分化，不分草木。</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="ref-box">
+            <strong>參考文獻與資料來源：</strong>
+            <ol style="margin-top: 8px; padding-left: 20px; color: var(--text-muted); font-size: 0.85rem;">
+                <li>Reece, J. B., et al. (2014). <em>Campbell Biology</em> (10th ed.). Pearson. (植物構造與次生生長章節)</li>
+                <li>行政院農業委員會 - 農業知識入口網：植物生理與分類指引。</li>
+                <li>整合使用者提供之 AI 搜尋結構化數據（形成層活性、木質素、單雙子葉之特例分析）。</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="footer">
+        <div><span class="author">© 2026 minmilo83 (Mimi)</span> | 綜合生物學探究筆記</div>
+        <div style="font-size: 0.8rem; opacity: 0.7;">Powered by Advanced Data Synthesis & Google AI</div>
+    </div>
+</div>
+
+</body>
+</html>
