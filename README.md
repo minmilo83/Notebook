@@ -26,15 +26,16 @@ This space was born from a simple desire to take notes. Throughout my learning j
 這是我的「筆記製作器」開發區。目前還在調整階段，尚未完全開發完畢。  
 This is the development area for my "Note Maker." It is currently under refinement and is not yet fully completed.
 
-👉 **[Maker Dashboard (Main)](https://minmilo83.github.io/Notebook/Maker/)**
+👉 **[前往 Maker 主控台 | Maker Dashboard](https://minmilo83.github.io/Notebook/Maker/)**
 
-**歷史版本回顧 | Version History:**
+### 📜 歷史版本回顧 | Version History
 
-* 🔗 [Editor V1 連結](https://minmilo83.github.io/Notebook/Maker/editor_V1.html)
-* 🔗 [Editor V2 連結](https://minmilo83.github.io/Notebook/Maker/editor_V2.html)
-* 🔗 [Editor V3 (Latest Build) 連結](https://minmilo83.github.io/Notebook/Maker/editor_V3.html)
+* 🔗 [Editor V1 - 初始版本連結](https://minmilo83.github.io/Notebook/Maker/editor_V1.html)
+* 🔗 [Editor V2 - 介面優化連結](https://minmilo83.github.io/Notebook/Maker/editor_V2.html)
+* 🔗 [Editor V3 - 最新測試版連結](https://minmilo83.github.io/Notebook/Maker/editor_V3.html)
 
 ---
 
 ## 📅 最後更新日期 | Last Updated
 2026 年 4 月 11 日
+
