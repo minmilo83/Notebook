@@ -10,22 +10,25 @@ This space was born from a simple desire to take notes. Throughout my learning j
 
 ---
 
-## 🌐 筆記庫索引 | Note Index
+## 🌿 自然科學 | Natural Science
 
-### 🌿 自然科學 | Natural Science
-* [**草本 vs 木本植物 | Herbaceous vs. Woody Plants**](https://minmilo83.github.io/Notebook/Natural-Science/Biology/Herbaceous-vs-Woody-Plants/)  
-  *深入解析植物的莖部結構 | In-depth analysis of plant stem structures.*
-* [**維度與幾何 | Dimensions & Geometry**](https://minmilo83.github.io/Notebook/Natural-Science/Physical/Dimensions-and-Geometry/)  
-  *探索物理維度與分形的奧秘 | Exploring the mysteries of physical dimensions and fractals.*
+* **[草本 vs 木本植物 | Herbaceous vs. Woody Plants](https://minmilo83.github.io/Notebook/Natural-Science/Biology/Herbaceous-vs-Woody-Plants/)**
+    * 植物莖部結構的深度解析。
+    * *In-depth analysis of plant stem structures.*
+
+* **[維度與幾何 | Dimensions & Geometry](https://minmilo83.github.io/Notebook/Natural-Science/Physical/Dimensions-and-Geometry/)**
+    * 探索物理維度與分形的奧秘。
+    * *Exploring the mysteries of physical dimensions and fractals.*
 
 ---
 
-### 🛠️ 實驗室 | Maker (開發中 | WIP 🚧)
+## 🛠️ 實驗室 | Maker (開發中 | WIP 🚧)
+
 這是我的「筆記製作器」開發區。目前還在調整階段，尚未完全開發完畢。  
 This is the development area for my "Note Maker." It is currently under refinement and is not yet fully completed.
 
 * **[Maker Dashboard (Main)](https://minmilo83.github.io/Notebook/Maker/)**
-* **歷史版本回顧 | Version History:**
+* **歷史版本 | Version History:**
     * [Editor V1](https://minmilo83.github.io/Notebook/Maker/editor_V1.html)
     * [Editor V2](https://minmilo83.github.io/Notebook/Maker/editor_V2.html)
     * [Editor V3 (Latest Build)](https://minmilo83.github.io/Notebook/Maker/editor_V3.html)
